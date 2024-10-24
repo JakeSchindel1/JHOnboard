@@ -5,16 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AlertCircle, ListPlus, FileCheck } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface OnboardingPage6Props {
   formData: {
     medications: string[];
+    matMedication?: string;
+    matMedicationOther?: string;
     medicationSignature?: string;
     medicationSignatureDate?: string;
     medicationWitnessSignature?: string;
     medicationWitnessTimestamp?: string;
     medicationSignatureId?: string;
   };
+  isOnMAT: boolean;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSelectChange: (name: string, value: string | string[]) => void;
 }
@@ -27,6 +31,7 @@ const generateSignatureId = () => {
 
 export default function OnboardingPage6({
   formData,
+  isOnMAT,
   handleInputChange,
   handleSelectChange
 }: OnboardingPage6Props) {
@@ -86,14 +91,12 @@ export default function OnboardingPage6({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          {/* Main Requirements */}
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="font-semibold text-blue-900 mb-2">
               LIST ALL MEDICATIONS CURRENTLY PRESCRIBED TO YOU BY YOUR DOCTOR AND PRESENT YOUR PRESCRIPTIONS TO THE PERSON DOING YOUR INTAKE. INCLUDE ANY OVER THE COUNTER.
             </p>
           </div>
 
-          {/* Key Points in Grid */}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="border rounded-lg p-4 bg-gray-50">
               <p className="font-medium mb-2">Storage Requirements</p>
@@ -111,7 +114,6 @@ export default function OnboardingPage6({
             </div>
           </div>
 
-          {/* Additional Information */}
           <div className="bg-yellow-50 p-4 rounded-lg">
             <p className="text-yellow-900">
               ANY MEDICATION LEFT AT A JOURNEY HOUSE RESIDENCE AFTER THE RESIDENT HAS LEFT WILL BE BROUGHT TO THE CENTER AND BE DESTROYED IF AND WHEN YOUR BELONGINGS ARE NOT PICKED UP WITH 14 DAYS.
@@ -129,6 +131,54 @@ export default function OnboardingPage6({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* MAT Medication Section - Only shows if isOnMAT is true */}
+          {isOnMAT && (
+            <div className="mb-6">
+              <Card className="bg-blue-50">
+                <CardHeader>
+                  <CardTitle className="text-base">MAT Medication</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Select
+                    value={formData.matMedication || ''}
+                    onValueChange={(value) => handleSelectChange('matMedication', value)}
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Select your MAT medication" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="belbuca">Belbuca</SelectItem>
+                      <SelectItem value="brixadi">Brixadi</SelectItem>
+                      <SelectItem value="bunavail">Bunavail</SelectItem>
+                      <SelectItem value="butrans">Butrans</SelectItem>
+                      <SelectItem value="cassipa">Cassipa</SelectItem>
+                      <SelectItem value="contrave">Contrave</SelectItem>
+                      <SelectItem value="dolophine_hydrochloride">Dolophine Hydrochloride</SelectItem>
+                      <SelectItem value="embeda">Embeda</SelectItem>
+                      <SelectItem value="probuphine">Probuphine</SelectItem>
+                      <SelectItem value="relistor">Relistor</SelectItem>
+                      <SelectItem value="sublocade">Sublocade</SelectItem>
+                      <SelectItem value="suboxone">Suboxone</SelectItem>
+                      <SelectItem value="subutex">Subutex</SelectItem>
+                      <SelectItem value="troxyca_er">Troxyca ER</SelectItem>
+                      <SelectItem value="vivitrol">Vivitrol</SelectItem>
+                      <SelectItem value="zubsolv">Zubsolv</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.matMedication === 'other' && (
+                    <Input
+                      className="mt-2 bg-white"
+                      placeholder="Please specify your MAT medication"
+                      value={formData.matMedicationOther || ''}
+                      onChange={(e) => handleSelectChange('matMedicationOther', e.target.value)}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           <p className="text-sm text-gray-600 italic">
             If you do not take any medications, please write &quot;none&quot;, then sign &amp; date.
           </p>

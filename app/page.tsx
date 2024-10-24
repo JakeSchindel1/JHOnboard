@@ -36,7 +36,9 @@ interface FormData {
   emergencyContactRelationship: string;
   otherRelationship: string;
   dualDiagnosis: string;
-  mat: string;
+  mat: boolean;
+  matMedication: string;
+  matMedicationOther: string;
   needPsychMedication: string;
   hasProbationOrPretrial: string;
   jurisdiction: string;
@@ -65,7 +67,6 @@ interface FormData {
   treatmentwitnessSignature?: string;
   treatmentwitnessTimestamp?: string;
   treatmentsignatureId?: string;
-  // New pricing agreement fields
   priceConsentSignature?: string;
   priceConsentAgreed?: boolean;
   priceConsentTimestamp?: string;
@@ -98,7 +99,9 @@ export default function OnboardingForm() {
     emergencyContactRelationship: "",
     otherRelationship: "",
     dualDiagnosis: "",
-    mat: "",
+    mat: false,
+    matMedication: "",
+    matMedicationOther: "",
     needPsychMedication: "",
     hasProbationOrPretrial: "",
     jurisdiction: "",
@@ -127,7 +130,6 @@ export default function OnboardingForm() {
     treatmentwitnessSignature: '',
     treatmentwitnessTimestamp: '',
     treatmentsignatureId: '',
-    // Initialize new pricing agreement fields
     priceConsentSignature: '',
     priceConsentAgreed: false,
     priceConsentTimestamp: '',
@@ -141,7 +143,7 @@ export default function OnboardingForm() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: string, value: string | string[]) => {
+  const handleSelectChange = (name: string, value: string | string[] | boolean) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -160,22 +162,19 @@ export default function OnboardingForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (currentPage < 9) { // Updated to account for the new pricing page
+    if (currentPage < 9) {
       setCurrentPage(prev => prev + 1);
       return;
     }
     
-    // Validate signatures
     if (currentPage === 5 && (!formData.consentSignature || !formData.witnessSignature)) {
       return;
     }
 
-    // Validate medication page
     if (currentPage === 6 && !formData.medicationSignature) {
       return;
     }
 
-    // Validate disclosure page
     if (currentPage === 7 && (
       formData.authorizedPeople.length === 0 || 
       formData.authorizedPeople.some(person => 
@@ -185,50 +184,52 @@ export default function OnboardingForm() {
       return;
     }
 
-    // Validate pricing agreement
     if (currentPage === 9 && (!formData.priceConsentSignature || !formData.priceWitnessSignature)) {
       return;
     }
     
     try {
-      // Here you would typically send the data to your backend
       console.log("Form submitted:", formData);
-      // await submitFormData(formData);
-      // Handle successful submission
     } catch (error) {
       console.error("Error submitting form:", error);
-      // Handle error
     }
   };
 
   const renderPageContent = () => {
-    const commonProps = {
+    const basicProps = {
       formData,
       handleInputChange,
       handleSelectChange,
-      handleAuthorizedPeopleChange,
-      setCurrentPage
+      setCurrentPage,  // Add this back
     };
 
     switch (currentPage) {
       case 1:
-        return <OnboardingPage1 {...commonProps} />;
+        return <OnboardingPage1 {...basicProps} />;
       case 2:
-        return <OnboardingPage2 {...commonProps} />;
+        return <OnboardingPage2 {...basicProps} />;
       case 3:
-        return <OnboardingPage3 {...commonProps} />;
+        return <OnboardingPage3 {...basicProps} />;
       case 4:
-        return <OnboardingPage4 {...commonProps} />;
+        return <OnboardingPage4 {...basicProps} />;
       case 5:
-        return <OnboardingPage5 {...commonProps} />;
+        return <OnboardingPage5 {...basicProps} />;
       case 6:
-        return <OnboardingPage6 {...commonProps} />;
+        return <OnboardingPage6 
+          formData={formData}
+          isOnMAT={formData.mat}
+          handleInputChange={handleInputChange}
+          handleSelectChange={handleSelectChange}
+        />;
       case 7:
-        return <OnboardingPage7 {...commonProps} />;
+        return <OnboardingPage7 
+          {...basicProps} 
+          handleAuthorizedPeopleChange={handleAuthorizedPeopleChange}
+        />;
       case 8:
-        return <OnboardingPage8 {...commonProps} />;
+        return <OnboardingPage8 {...basicProps} />;
       case 9:
-        return <OnboardingPage9 {...commonProps} />;
+        return <OnboardingPage9 {...basicProps} />;
       default:
         return null;
     }
