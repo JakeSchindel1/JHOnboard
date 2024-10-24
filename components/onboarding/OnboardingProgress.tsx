@@ -8,7 +8,7 @@ interface OnboardingProgressProps {
 
 const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ 
   currentPage, 
-  totalPages = 6,
+  totalPages = 7,
   color = "#00998e"
 }) => {
   const percentage = (currentPage / totalPages) * 100;
