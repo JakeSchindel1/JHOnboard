@@ -11,6 +11,7 @@ import OnboardingPage4 from '@/components/onboarding/OnboardingPage4';
 import OnboardingPage5 from '@/components/onboarding/OnboardingPage5';
 import OnboardingPage6 from '@/components/onboarding/OnboardingPage6';
 import OnboardingPage7 from '@/components/onboarding/OnboardingPage7';
+import OnboardingPage8 from '@/components/onboarding/OnboardingPage8';
 
 interface FormData {
   firstName: string;
@@ -57,6 +58,12 @@ interface FormData {
     relationship: string;
     phone: string;
   }>;
+  treatmentSignature?: string;
+  treatmentAgreed?: boolean;
+  treatmentTimestamp?: string;
+  treatmentwitnessSignature?: string;
+  treatmentwitnessTimestamp?: string;
+  treatmentsignatureId?: string;
 }
 
 export default function OnboardingForm() {
@@ -105,7 +112,13 @@ export default function OnboardingForm() {
       lastName: '',
       relationship: '',
       phone: ''
-    }]
+    }],
+    treatmentSignature: '',
+    treatmentAgreed: false,
+    treatmentTimestamp: '',
+    treatmentwitnessSignature: '',
+    treatmentwitnessTimestamp: '',
+    treatmentsignatureId: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,7 +145,7 @@ export default function OnboardingForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (currentPage < 7) {
+    if (currentPage < 8) {
       setCurrentPage(prev => prev + 1);
       return;
     }
@@ -192,6 +205,8 @@ export default function OnboardingForm() {
         return <OnboardingPage6 {...commonProps} />;
       case 7:
         return <OnboardingPage7 {...commonProps} />;
+      case 8:
+        return <OnboardingPage8 {...commonProps} />;
       default:
         return null;
     }
@@ -247,7 +262,7 @@ export default function OnboardingForm() {
               type="submit"
               disabled={isSubmitDisabled()}
             >
-              {currentPage === 7 ? "Submit" : "Next"}
+              {currentPage === 8 ? "Submit" : "Next"}
             </Button>
           </div>
         </div>
