@@ -1,0 +1,15 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": true,
+  "tailwind": {
+    "config": "c:\\Users\\JakeSchindel\\journey_house_onboarding\\tailwind.config.ts",
+    "css": "c:\\Users\\JakeSchindel\\journey_house_onboarding\\app\\globals.css",
+    "baseColor": "slate",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils"
+  }
+}
