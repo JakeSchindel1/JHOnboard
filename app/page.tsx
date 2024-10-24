@@ -12,6 +12,7 @@ import OnboardingPage5 from '@/components/onboarding/OnboardingPage5';
 import OnboardingPage6 from '@/components/onboarding/OnboardingPage6';
 import OnboardingPage7 from '@/components/onboarding/OnboardingPage7';
 import OnboardingPage8 from '@/components/onboarding/OnboardingPage8';
+import OnboardingPage9 from '@/components/onboarding/OnboardingPage9';
 
 interface FormData {
   firstName: string;
@@ -64,6 +65,13 @@ interface FormData {
   treatmentwitnessSignature?: string;
   treatmentwitnessTimestamp?: string;
   treatmentsignatureId?: string;
+  // New pricing agreement fields
+  priceConsentSignature?: string;
+  priceConsentAgreed?: boolean;
+  priceConsentTimestamp?: string;
+  priceWitnessSignature?: string;
+  priceWitnessTimestamp?: string;
+  priceSignatureId?: string;
 }
 
 export default function OnboardingForm() {
@@ -118,7 +126,14 @@ export default function OnboardingForm() {
     treatmentTimestamp: '',
     treatmentwitnessSignature: '',
     treatmentwitnessTimestamp: '',
-    treatmentsignatureId: ''
+    treatmentsignatureId: '',
+    // Initialize new pricing agreement fields
+    priceConsentSignature: '',
+    priceConsentAgreed: false,
+    priceConsentTimestamp: '',
+    priceWitnessSignature: '',
+    priceWitnessTimestamp: '',
+    priceSignatureId: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,7 +160,7 @@ export default function OnboardingForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (currentPage < 8) {
+    if (currentPage < 9) { // Updated to account for the new pricing page
       setCurrentPage(prev => prev + 1);
       return;
     }
@@ -167,6 +182,11 @@ export default function OnboardingForm() {
         !person.firstName || !person.lastName || !person.relationship || !person.phone
       )
     )) {
+      return;
+    }
+
+    // Validate pricing agreement
+    if (currentPage === 9 && (!formData.priceConsentSignature || !formData.priceWitnessSignature)) {
       return;
     }
     
@@ -207,6 +227,8 @@ export default function OnboardingForm() {
         return <OnboardingPage7 {...commonProps} />;
       case 8:
         return <OnboardingPage8 {...commonProps} />;
+      case 9:
+        return <OnboardingPage9 {...commonProps} />;
       default:
         return null;
     }
@@ -225,6 +247,9 @@ export default function OnboardingForm() {
           !person.firstName || !person.lastName || !person.relationship || !person.phone
         );
     }
+    if (currentPage === 9) {
+      return !formData.priceConsentSignature || !formData.priceWitnessSignature;
+    }
     return false;
   };
 
@@ -242,7 +267,7 @@ export default function OnboardingForm() {
       </div>
 
       <h1 className="text-3xl font-bold mb-6 text-center">Onboarding Form</h1>
-      <OnboardingProgress currentPage={currentPage} />
+      <OnboardingProgress currentPage={currentPage} totalPages={9} />
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {renderPageContent()}
@@ -262,7 +287,7 @@ export default function OnboardingForm() {
               type="submit"
               disabled={isSubmitDisabled()}
             >
-              {currentPage === 8 ? "Submit" : "Next"}
+              {currentPage === 9 ? "Submit" : "Next"}
             </Button>
           </div>
         </div>
