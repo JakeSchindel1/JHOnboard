@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { FileCheck, ScrollText, DollarSign } from "lucide-react";
+import { FileCheck, ScrollText, DollarSign, Info } from "lucide-react";
 
 interface FormData {
   priceConsentSignature?: string;
@@ -31,6 +31,13 @@ const generateSignatureId = () => {
 const PriceBox = ({ amount }: { amount: string }) => (
   <div className="bg-green-100 text-green-800 font-semibold px-3 py-1 rounded-md border border-green-200 shadow-sm hover:bg-green-50 transition-colors">
     {amount}
+  </div>
+);
+
+const SubNote = ({ icon, text }: { icon: string; text: string }) => (
+  <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 transition-colors">
+    <div className="flex-shrink-0 text-blue-500 font-medium w-6 text-center">{icon}</div>
+    <p className="text-sm text-gray-700 leading-relaxed">{text}</p>
   </div>
 );
 
@@ -130,15 +137,15 @@ export default function PricingAgreement({
                     <PriceBox amount="$35.00/per test" />
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Transportation labor rate*</span>
+                    <span className="text-gray-700">Transportation labor rate①</span>
                     <PriceBox amount="$15.00/half hour" />
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Afterhours Transportation Labor*</span>
+                    <span className="text-gray-700">Afterhours Transportation Labor①</span>
                     <PriceBox amount="$20.00/half hour" />
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Transportation rate per mile*</span>
+                    <span className="text-gray-700">Transportation rate per mile①</span>
                     <PriceBox amount="$1.50/mile" />
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
@@ -146,7 +153,7 @@ export default function PricingAgreement({
                     <PriceBox amount="$25.00/hr" />
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Sober Companion Labor with vehicle*</span>
+                    <span className="text-gray-700">Sober Companion Labor with vehicle①</span>
                     <PriceBox amount="$35.00/hr" />
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
@@ -182,19 +189,35 @@ export default function PricingAgreement({
                     <PriceBox amount="$40.00/hr" />
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Afterhours Staff Emergency Event**</span>
+                    <span className="text-gray-700">Afterhours Staff Emergency Event②</span>
                     <PriceBox amount="$75.00/hr" />
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Funds handling fee***</span>
+                    <span className="text-gray-700">Funds handling fee③</span>
                     <PriceBox amount="$10.00/transaction" />
                   </div>
                 </div>
 
-                <div className="space-y-2 mt-4 text-sm text-gray-700">
-                  <p>* Transportation has a labor rate either staff or sober companion and mileage rate.</p>
-                  <p>** The participant has to be so noncompliant that the peer leader is unable to handle the situation and emergency services are involved.</p>
-                  <p>*** For bed-fee transaction done in person and not through the rec-cap portal while in sober living or step-up</p>
+                <div className="space-y-2 mt-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Info className="h-5 w-5 text-blue-500" />
+                    <h4 className="font-semibold text-gray-800">Important Notes</h4>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <SubNote 
+                      icon="①" 
+                      text="Transportation has a labor rate either staff or sober companion and mileage rate." 
+                    />
+                    <SubNote 
+                      icon="②" 
+                      text="The participant has to be so noncompliant that the peer leader is unable to handle the situation and emergency services are involved." 
+                    />
+                    <SubNote 
+                      icon="③" 
+                      text="For bed-fee transaction done in person and not through the rec-cap portal while in sober living or step-up" 
+                    />
+                  </div>
                 </div>
 
                 <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
@@ -203,7 +226,7 @@ export default function PricingAgreement({
                   </p>
                 </div>
 
-                <p className="text-sm text-gray-800 mt-4">
+                <p className="text-sm text-gray-800">
                   Payments made in person while in Sober Living or Step-Up may result in a $10/transaction handling fee. Payments invoiced to families will be updated by staff in the rec-cap portal once payment has been confirmed, and there will be no handling fee associated with it.
                 </p>
 
