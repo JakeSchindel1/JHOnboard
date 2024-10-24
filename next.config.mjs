@@ -1,9 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: 'standalone',
+    // Remove the standalone output since Amplify handles deployment differently
     images: {
-      unoptimized: true
-    }
+      unoptimized: true,
+      // If you're using remote images, you'll need to add domains here
+      // domains: ['your-domain.com'],
+    },
+    // This helps prevent issues with Static Site Generation in Amplify
+    generateEtags: false,
   }
   
-  export default nextConfig
+  module.exports = nextConfig
