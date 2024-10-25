@@ -70,10 +70,10 @@ export default function LandingPage() {
               <Image
                 src="/images/JourneyHouseLogo.png"
                 alt="Journey House Logo"
-                width={500}
-                height={200}
+                width={250}
+                height={100}
                 priority
-                className="h-auto w-auto max-w-[500px]"
+                className="h-auto w-auto max-w-[250px]"
               />
             </Link>
           </div>
