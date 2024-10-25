@@ -1,24 +1,25 @@
-// app/page.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from '@/components/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Lock, User } from "lucide-react";
+import { Lock, User, ArrowRight } from "lucide-react";
 
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [error, setError] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -26,6 +27,10 @@ export default function LandingPage() {
   
   const { login } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError('');
@@ -48,32 +53,56 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="flex flex-col items-center space-y-8 max-w-md w-full">
-        <div className="w-64">
-          <Image
-            src="/images/JourneyHouseLogo.png"
-            alt="Journey House Logo"
-            width={200}
-            height={80}
-            priority
-            className="h-auto w-auto max-w-[200px]"
-          />
+    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white">
+      {/* Main Content */}
+      <main className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+        <div className={`flex flex-col items-center space-y-12 max-w-4xl w-full transition-all duration-1000 ${
+          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+        }`}>
+          {/* Logo Section with Link */}
+          <div className="flex justify-center items-center w-full">
+            <Link 
+              href="https://journeyhouserecovery.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cursor-pointer transition-transform duration-300 hover:scale-105"
+            >
+              <Image
+                src="/images/JourneyHouseLogo.png"
+                alt="Journey House Logo"
+                width={500}
+                height={200}
+                priority
+                className="h-auto w-auto max-w-[500px]"
+              />
+            </Link>
+          </div>
+
+          {/* Welcome Text */}
+          <div className="text-center space-y-4">
+            <h1 className="text-4xl font-bold text-gray-800">Journey House Participant Intake</h1>
+            <p className="text-xl text-gray-600 max-w-2xl">
+            A holistic, peer recovery program teaching individuals to live a recovery lifestyle and achieve a thriving life.
+            </p>
+          </div>
+
+          {/* CTA Button */}
+          <Button 
+            size="lg" 
+            className="w-full max-w-sm text-lg py-6 bg-teal-600 hover:bg-teal-700 transform hover:scale-105 transition-all duration-300 shadow-lg group"
+            onClick={() => setIsLoginOpen(true)}
+          >
+            Begin New Intake
+            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+          </Button>
         </div>
+      </main>
 
-        <Button 
-          size="lg" 
-          className="w-full max-w-sm text-lg py-6"
-          onClick={() => setIsLoginOpen(true)}
-        >
-          New Intake
-        </Button>
-      </div>
-
+      {/* Login Dialog */}
       <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-center">Login Required</DialogTitle>
+            <DialogTitle className="text-center text-xl font-semibold">Welcome Back</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -110,7 +139,7 @@ export default function LandingPage() {
             {error && (
               <div className="text-red-500 text-sm text-center">{error}</div>
             )}
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
               Sign in
             </Button>
           </form>
