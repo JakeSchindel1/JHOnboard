@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { AuthProvider } from '@/components/contexts/AuthContext';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
   weight: "100 900",
 });
+
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
@@ -25,19 +27,18 @@ export const metadata: Metadata = {
       {
         url: '/images/Favcon/JHFavcon.png',
         type: 'image/png',
-        sizes: '48x48'  // or whatever size your PNG is
+        sizes: '48x48'
       }
     ],
     apple: [
       {
         url: '/images/Favcon/AppleFavconJH.png',
         type: 'image/png',
-        sizes: '180x180'  // recommended size for Apple devices
+        sizes: '180x180'
       }
     ],
   },
 };
-
 
 export default function RootLayout({
   children,
@@ -49,7 +50,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

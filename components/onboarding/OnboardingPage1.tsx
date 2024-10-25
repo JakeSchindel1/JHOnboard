@@ -161,6 +161,8 @@ export default function OnboardingPage1({
                   <SelectItem value="colebrook">Colebrook</SelectItem>
                   <SelectItem value="broad_meadows">Broad Meadows</SelectItem>
                   <SelectItem value="lakeside">Lakeside</SelectItem>
+                  <SelectItem value="sleepy_hollow">Sleepy Hollow</SelectItem>
+                  <SelectItem value="stoneman">Stoneman</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-sm text-gray-500">

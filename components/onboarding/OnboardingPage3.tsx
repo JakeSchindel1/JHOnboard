@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Shield, Contact } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface FormData {
   insured?: string;
@@ -20,12 +21,14 @@ interface OnboardingPage3Props {
   formData: FormData;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSelectChange: (name: string, value: string) => void;
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export default function OnboardingPage3({
   formData = {},
   handleInputChange,
-  handleSelectChange
+  handleSelectChange,
+  setCurrentPage
 }: OnboardingPage3Props) {
   const {
     insured = '',
@@ -40,14 +43,9 @@ export default function OnboardingPage3({
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
-    
-    // Remove all non-numeric characters
     value = value.replace(/\D/g, '');
-    
-    // Limit to 10 digits
     value = value.slice(0, 10);
     
-    // Format as (XXX)XXX-XXXX
     if (value.length > 6) {
       value = `(${value.slice(0, 3)})${value.slice(3, 6)}-${value.slice(6)}`;
     } else if (value.length > 3) {
@@ -56,7 +54,6 @@ export default function OnboardingPage3({
       value = `(${value}`;
     }
 
-    // Create a new event with the formatted value
     const newEvent = {
       ...e,
       target: {
@@ -69,9 +66,36 @@ export default function OnboardingPage3({
     handleInputChange(newEvent);
   };
 
+  const isEmergencyContactComplete = () => {
+    if (emergencyContactRelationship === 'other') {
+      return (
+        emergencyContactFirstName?.trim() &&
+        emergencyContactLastName?.trim() &&
+        emergencyContactPhone?.trim() &&
+        emergencyContactRelationship?.trim() &&
+        otherRelationship?.trim()
+      );
+    }
+    return (
+      emergencyContactFirstName?.trim() &&
+      emergencyContactLastName?.trim() &&
+      emergencyContactPhone?.trim() &&
+      emergencyContactRelationship?.trim()
+    );
+  };
+
+  const handleNextPage = () => {
+    if (!isEmergencyContactComplete()) {
+      alert('Please complete all emergency contact fields before proceeding.');
+      return;
+    }
+    setCurrentPage(prev => prev + 1);
+  };
+
+  const isInsuranceFieldsDisabled = insured === 'no';
+
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">INSURANCE & EMERGENCY CONTACTS</h2>
         <p className="text-sm text-gray-600">Please complete all required fields</p>
@@ -107,12 +131,21 @@ export default function OnboardingPage3({
 
             {/* Insurance Type */}
             <div className="space-y-2">
-              <Label htmlFor="insuranceType" className="text-base font-medium">Insurance Type</Label>
+              <Label 
+                htmlFor="insuranceType" 
+                className={`text-base font-medium ${isInsuranceFieldsDisabled ? 'text-gray-400' : ''}`}
+              >
+                Insurance Type
+              </Label>
               <Select 
                 value={insuranceType} 
                 onValueChange={(value) => handleSelectChange('insuranceType', value)}
+                disabled={isInsuranceFieldsDisabled}
               >
-                <SelectTrigger id="insuranceType" className="bg-white">
+                <SelectTrigger 
+                  id="insuranceType" 
+                  className={`bg-white ${isInsuranceFieldsDisabled ? 'opacity-50' : ''}`}
+                >
                   <SelectValue placeholder="Select insurance type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -121,22 +154,32 @@ export default function OnboardingPage3({
                   <SelectItem value="medicaid">Medicaid</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-sm text-gray-500">Type of insurance coverage</p>
+              <p className={`text-sm ${isInsuranceFieldsDisabled ? 'text-gray-400' : 'text-gray-500'}`}>
+                Type of insurance coverage
+              </p>
             </div>
 
             {/* Policy Number */}
             <div className="space-y-2">
-              <Label htmlFor="policyNumber" className="text-base font-medium">Policy Number</Label>
+              <Label 
+                htmlFor="policyNumber" 
+                className={`text-base font-medium ${isInsuranceFieldsDisabled ? 'text-gray-400' : ''}`}
+              >
+                Policy Number
+              </Label>
               <Input
                 id="policyNumber"
                 name="policyNumber"
                 value={policyNumber}
                 onChange={handleInputChange}
-                className="bg-white"
+                className={`bg-white ${isInsuranceFieldsDisabled ? 'opacity-50' : ''}`}
                 placeholder="Enter your policy number"
                 required
+                disabled={isInsuranceFieldsDisabled}
               />
-              <p className="text-sm text-gray-500">Your insurance policy number</p>
+              <p className={`text-sm ${isInsuranceFieldsDisabled ? 'text-gray-400' : 'text-gray-500'}`}>
+                Your insurance policy number
+              </p>
             </div>
           </div>
         </CardContent>
@@ -154,7 +197,9 @@ export default function OnboardingPage3({
           <div className="grid md:grid-cols-2 gap-6">
             {/* Contact First Name */}
             <div className="space-y-2">
-              <Label htmlFor="emergencyContactFirstName" className="text-base font-medium">First Name</Label>
+              <Label htmlFor="emergencyContactFirstName" className="text-base font-medium">
+                First Name
+              </Label>
               <Input
                 id="emergencyContactFirstName"
                 name="emergencyContactFirstName"
@@ -169,7 +214,9 @@ export default function OnboardingPage3({
 
             {/* Contact Last Name */}
             <div className="space-y-2">
-              <Label htmlFor="emergencyContactLastName" className="text-base font-medium">Last Name</Label>
+              <Label htmlFor="emergencyContactLastName" className="text-base font-medium">
+                Last Name
+              </Label>
               <Input
                 id="emergencyContactLastName"
                 name="emergencyContactLastName"
@@ -184,7 +231,9 @@ export default function OnboardingPage3({
 
             {/* Contact Phone */}
             <div className="space-y-2">
-              <Label htmlFor="emergencyContactPhone" className="text-base font-medium">Contact Phone</Label>
+              <Label htmlFor="emergencyContactPhone" className="text-base font-medium">
+                Contact Phone
+              </Label>
               <Input
                 id="emergencyContactPhone"
                 name="emergencyContactPhone"
@@ -200,7 +249,9 @@ export default function OnboardingPage3({
 
             {/* Contact Relationship */}
             <div className="space-y-2">
-              <Label htmlFor="emergencyContactRelationship" className="text-base font-medium">Relationship</Label>
+              <Label htmlFor="emergencyContactRelationship" className="text-base font-medium">
+                Relationship
+              </Label>
               <Select 
                 value={emergencyContactRelationship} 
                 onValueChange={(value) => handleSelectChange('emergencyContactRelationship', value)}

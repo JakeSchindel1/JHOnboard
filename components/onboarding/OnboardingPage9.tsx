@@ -118,7 +118,7 @@ export default function PricingAgreement({
                 <div className="grid grid-cols-1 gap-4 text-sm">
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                     <span className="text-gray-700">Administrative &quot;Processing&quot; Rate</span>
-                    <PriceBox amount="$300.00/intake" />
+                    <PriceBox amount="$200.00/intake" />
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                     <span className="text-gray-700">Daily Rate (only for prorated weeks)</span>

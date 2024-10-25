@@ -25,12 +25,10 @@ export default function OnboardingPage4({
   handleSelectChange,
   setCurrentPage
 }: OnboardingPage4Props) {
-  // Handle MAT selection with boolean conversion
   const handleMatChange = (value: string) => {
     handleSelectChange('mat', value === 'yes');
   };
 
-  // Handle probation change
   const handleProbationChange = (value: string) => {
     handleSelectChange('hasProbationOrPretrial', value);
     if (value === 'no') {
@@ -55,18 +53,18 @@ export default function OnboardingPage4({
             Medical Information
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Dual Diagnosis */}
-            <div className="space-y-2">
-              <Label htmlFor="dualDiagnosis" className="text-base font-medium">
+            {/* Form Group Container */}
+            <div className="flex flex-col h-36">
+              <Label htmlFor="dualDiagnosis" className="text-base font-medium mb-2">
                 Dual Diagnosis
               </Label>
               <Select 
                 value={formData.dualDiagnosis || ''} 
                 onValueChange={(value) => handleSelectChange('dualDiagnosis', value)}
               >
-                <SelectTrigger id="dualDiagnosis" className="bg-white">
+                <SelectTrigger id="dualDiagnosis" className="bg-white mb-2">
                   <SelectValue placeholder="Select dual diagnosis status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -79,16 +77,15 @@ export default function OnboardingPage4({
               </p>
             </div>
 
-            {/* MAT */}
-            <div className="space-y-2">
-              <Label htmlFor="mat" className="text-base font-medium">
+            <div className="flex flex-col h-36">
+              <Label htmlFor="mat" className="text-base font-medium mb-2">
                 MAT (Medication-Assisted Treatment)
               </Label>
               <Select 
                 value={formData.mat ? "yes" : "no"}
                 onValueChange={handleMatChange}
               >
-                <SelectTrigger id="mat" className="bg-white">
+                <SelectTrigger id="mat" className="bg-white mb-2">
                   <SelectValue placeholder="Select MAT status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -101,16 +98,15 @@ export default function OnboardingPage4({
               </p>
             </div>
 
-            {/* Psychiatric Medication */}
-            <div className="space-y-2">
-              <Label htmlFor="needPsychMedication" className="text-base font-medium">
+            <div className="flex flex-col h-36">
+              <Label htmlFor="needPsychMedication" className="text-base font-medium mb-2">
                 Need Psychiatric Medication
               </Label>
               <Select 
                 value={formData.needPsychMedication || ''} 
                 onValueChange={(value) => handleSelectChange('needPsychMedication', value)}
               >
-                <SelectTrigger id="needPsychMedication" className="bg-white">
+                <SelectTrigger id="needPsychMedication" className="bg-white mb-2">
                   <SelectValue placeholder="Select psychiatric medication need" />
                 </SelectTrigger>
                 <SelectContent>
@@ -134,18 +130,17 @@ export default function OnboardingPage4({
             Legal Status
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Probation/Pretrial */}
-            <div className="space-y-2">
-              <Label htmlFor="hasProbationOrPretrial" className="text-base font-medium">
+            <div className="flex flex-col h-36">
+              <Label htmlFor="hasProbationOrPretrial" className="text-base font-medium mb-2">
                 Probation or Pretrial
               </Label>
               <Select 
                 value={formData.hasProbationOrPretrial || ''} 
                 onValueChange={handleProbationChange}
               >
-                <SelectTrigger id="hasProbationOrPretrial" className="bg-white">
+                <SelectTrigger id="hasProbationOrPretrial" className="bg-white mb-2">
                   <SelectValue placeholder="Select probation/pretrial status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -158,11 +153,10 @@ export default function OnboardingPage4({
               </p>
             </div>
 
-            {/* Jurisdiction */}
-            <div className="space-y-2">
+            <div className="flex flex-col h-36">
               <Label 
                 htmlFor="jurisdiction" 
-                className={`text-base font-medium ${formData.hasProbationOrPretrial === 'no' ? 'text-gray-400' : ''}`}
+                className={`text-base font-medium mb-2 ${formData.hasProbationOrPretrial === 'no' ? 'text-gray-400' : ''}`}
               >
                 Jurisdiction
               </Label>
@@ -171,7 +165,7 @@ export default function OnboardingPage4({
                 onValueChange={(value) => handleSelectChange('jurisdiction', value)}
                 disabled={formData.hasProbationOrPretrial === 'no'}
               >
-                <SelectTrigger id="jurisdiction" className="bg-white">
+                <SelectTrigger id="jurisdiction" className="bg-white mb-2">
                   <SelectValue placeholder="Select jurisdiction" />
                 </SelectTrigger>
                 <SelectContent>
@@ -187,10 +181,9 @@ export default function OnboardingPage4({
               </p>
             </div>
 
-            {/* Other Jurisdiction (Conditional) */}
             {formData.jurisdiction === 'other' && formData.hasProbationOrPretrial !== 'no' && (
-              <div className="space-y-2">
-                <Label htmlFor="otherJurisdiction" className="text-base font-medium">
+              <div className="flex flex-col h-36">
+                <Label htmlFor="otherJurisdiction" className="text-base font-medium mb-2">
                   Other Jurisdiction
                 </Label>
                 <Input
@@ -199,7 +192,7 @@ export default function OnboardingPage4({
                   value={formData.otherJurisdiction || ''}
                   onChange={handleInputChange}
                   required
-                  className="bg-white"
+                  className="bg-white mb-2"
                   placeholder="Please specify jurisdiction"
                 />
                 <p className="text-sm text-gray-500">
