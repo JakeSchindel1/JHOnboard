@@ -182,11 +182,13 @@ export default function OnboardingForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    // Check if we should move to next page instead of submitting
     if (currentPage < 9) {
       setCurrentPage(prev => prev + 1);
       return;
     }
     
+    // Validate required signatures based on current page
     if (currentPage === 5 && (!formData.consentSignature || !formData.witnessSignature)) {
       return;
     }
@@ -216,20 +218,28 @@ export default function OnboardingForm() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(formData),
       });
 
+      // Enhanced error logging
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data: ApiResponse = await response.json();
 
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data.message || 'Failed to submit form');
       }
 
-      // Show success dialog or redirect
-      router.push('/success'); // Create a success page or show a success message
+      // Redirect to success page on successful submission
+      router.push('/success');
     } catch (error) {
-      console.error("Error submitting form:", error);
+      console.error('Fetch error:', error);
       setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
