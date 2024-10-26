@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation';
 interface ApiResponse {
   success: boolean;
   message: string;
+  error?: string;
   data?: any;
 }
 
@@ -90,13 +91,58 @@ interface FormData {
   priceSignatureId?: string;
 }
 
+// Required fields array
+const requiredFields = [
+  'firstName',
+  'lastName',
+  'intakeDate',
+  'housingLocation',
+  'dateOfBirth',
+  'socialSecurityNumber',
+  'sex',
+  'email',
+  'driversLicenseNumber',
+  'vehicleTagNumber',
+  'vehicleMake',
+  'vehicleModel',
+  'insured',
+  'insuranceType',
+  'policyNumber',
+  'emergencyContactFirstName',
+  'emergencyContactLastName',
+  'emergencyContactPhone',
+  'emergencyContactRelationship',
+  'dualDiagnosis',
+  'mat',
+  'matMedication',
+  'needPsychMedication',
+  'hasProbationOrPretrial',
+  'jurisdiction',
+  'consentSignature',
+  'consentAgreed',
+  'consentTimestamp',
+  'witnessSignature',
+  'witnessTimestamp',
+  'signatureId',
+  'medicationSignature',
+  'medicationSignatureDate',
+  'medicationWitnessSignature',
+  'medicationWitnessTimestamp',
+  'medicationSignatureId',
+  'priceConsentSignature',
+  'priceConsentAgreed',
+  'priceConsentTimestamp',
+  'priceWitnessSignature',
+  'priceWitnessTimestamp',
+  'priceSignatureId'
+];
+
 export default function OnboardingForm() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showDialog, setShowDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const router = useRouter();
-  
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
@@ -182,65 +228,101 @@ export default function OnboardingForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Check if we should move to next page instead of submitting
     if (currentPage < 9) {
       setCurrentPage(prev => prev + 1);
-      return;
-    }
-    
-    // Validate required signatures based on current page
-    if (currentPage === 5 && (!formData.consentSignature || !formData.witnessSignature)) {
-      return;
-    }
-
-    if (currentPage === 6 && !formData.medicationSignature) {
-      return;
-    }
-
-    if (currentPage === 7 && (
-      formData.authorizedPeople.length === 0 || 
-      formData.authorizedPeople.some(person => 
-        !person.firstName || !person.lastName || !person.relationship || !person.phone
-      )
-    )) {
-      return;
-    }
-
-    if (currentPage === 9 && (!formData.priceConsentSignature || !formData.priceWitnessSignature)) {
       return;
     }
     
     setIsSubmitting(true);
     setSubmitError(null);
 
+    // Log form data being sent
+    console.log('Submitting form data:', JSON.stringify(formData, null, 2));
+
     try {
+      // Validate required fields using type-safe approach
+      const missingFields = requiredFields.reduce((acc: string[], field) => {
+        if (field in formData && !formData[field as keyof FormData]) {
+          acc.push(field);
+        }
+        return acc;
+      }, []);
+
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+
+      // Validate authorized people
+      if (formData.authorizedPeople.length === 0 || 
+          formData.authorizedPeople.some(person => 
+            !person.firstName || 
+            !person.lastName || 
+            !person.relationship || 
+            !person.phone
+          )) {
+        throw new Error('All authorized people must have complete information');
+      }
+
       const response = await fetch('https://hssu7ggkl4.execute-api.us-east-1.amazonaws.com/default/onboarding-api', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        mode: 'cors',
+        credentials: 'omit',
         body: JSON.stringify(formData),
       });
 
-      // Enhanced error logging
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Log the raw response
+      console.log('Raw response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+
+      // Get response text first
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+
+      // Try to parse the response as JSON
+      let data: ApiResponse;
+      try {
+        data = JSON.parse(responseText) as ApiResponse;
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', responseText);
+        throw new Error('Invalid JSON response from server');
       }
 
-      const data: ApiResponse = await response.json();
+      // Log the parsed response
+      console.log('Parsed response data:', data);
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || 
+          data.message || 
+          `Server error: ${response.status} ${response.statusText}`
+        );
+      }
 
       if (!data.success) {
-        throw new Error(data.message || 'Failed to submit form');
+        throw new Error(data.message || 'Form submission failed');
       }
 
-      // Redirect to success page on successful submission
+      console.log('Form submitted successfully:', data);
       router.push('/success');
     } catch (error) {
-      console.error('Fetch error:', error);
-      setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      console.error('Form submission error:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+
+      setSubmitError(
+        error instanceof Error 
+          ? error.message 
+          : 'An unexpected error occurred while submitting the form. Please try again.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -328,6 +410,12 @@ export default function OnboardingForm() {
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {renderPageContent()}
+
+        {isSubmitting && (
+          <div className="p-4 mb-4 text-blue-700 bg-blue-100 rounded-lg">
+            Submitting form, please wait...
+          </div>
+        )}
 
         {submitError && (
           <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-lg">

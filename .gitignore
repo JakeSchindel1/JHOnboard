@@ -53,6 +53,8 @@ __pycache__/
 /backend/build/
 /backend/dist/
 /backend/*.egg-info/
+/backend/lambda_package/
+/backend/lambda_deployment.zip
 
 # Python Virtual Environment additional files
 /backend/*.so

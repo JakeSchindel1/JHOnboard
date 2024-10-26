@@ -1,25 +1,9 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from mangum import Mangum
-from aws_lambda_powertools import Logger
-from pydantic import BaseModel
+import json
 from typing import List, Optional
+from pydantic import BaseModel, EmailStr
 from datetime import date
 
-# Initialize FastAPI and Logger
-app = FastAPI()
-logger = Logger()
-
-# Configure CORS - update with your Amplify app URL when deployed
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Update this with your Amplify app URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Pydantic models
+# Pydantic models for data validation
 class AuthorizedPerson(BaseModel):
     firstName: str
     lastName: str
@@ -27,6 +11,7 @@ class AuthorizedPerson(BaseModel):
     phone: str
 
 class OnboardingData(BaseModel):
+    # Personal Information
     firstName: str
     lastName: str
     intakeDate: str
@@ -35,6 +20,8 @@ class OnboardingData(BaseModel):
     socialSecurityNumber: str
     sex: str
     email: str
+    
+    # Vehicle Information
     driversLicenseNumber: str
     vehicleTagNumber: str
     vehicleMake: str
@@ -42,38 +29,54 @@ class OnboardingData(BaseModel):
     insured: str
     insuranceType: str
     policyNumber: str
+    
+    # Emergency Contact
     emergencyContactFirstName: str
     emergencyContactLastName: str
     emergencyContactPhone: str
     emergencyContactRelationship: str
     otherRelationship: Optional[str]
+    
+    # Medical Information
     dualDiagnosis: str
     mat: bool
     matMedication: str
     matMedicationOther: Optional[str]
     needPsychMedication: str
+    medications: List[str]
+    
+    # Legal Information
     hasProbationOrPretrial: str
     jurisdiction: str
     otherJurisdiction: Optional[str]
+    
+    # Consent Forms
     consentSignature: str
     consentAgreed: bool
     consentTimestamp: str
     witnessSignature: str
     witnessTimestamp: str
     signatureId: str
-    medications: List[str]
+    
+    # Medication Forms
     medicationSignature: str
     medicationSignatureDate: str
     medicationWitnessSignature: str
     medicationWitnessTimestamp: str
     medicationSignatureId: str
+    
+    # Authorized People
     authorizedPeople: List[AuthorizedPerson]
+    
+    # Treatment Information
     treatmentSignature: Optional[str]
     treatmentAgreed: Optional[bool]
     treatmentTimestamp: Optional[str]
     treatmentwitnessSignature: Optional[str]
     treatmentwitnessTimestamp: Optional[str]
     treatmentsignatureId: Optional[str]
+    
+    # Price Consent
     priceConsentSignature: Optional[str]
     priceConsentAgreed: Optional[bool]
     priceConsentTimestamp: Optional[str]
@@ -81,45 +84,63 @@ class OnboardingData(BaseModel):
     priceWitnessTimestamp: Optional[str]
     priceSignatureId: Optional[str]
 
-@app.get("/")
-async def root():
-    return {"message": "API is running"}
+def get_cors_headers():
+    """Centralized CORS headers configuration"""
+    return {
+        'Access-Control-Allow-Origin': 'http://localhost:3000',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+        'Access-Control-Allow-Methods': 'OPTIONS,POST',
+        'Access-Control-Allow-Credentials': 'true',
+        'Content-Type': 'application/json'
+    }
 
-@app.post("/api/onboarding")
-@logger.inject_lambda_context
-async def create_onboarding(data: OnboardingData):
-    try:
-        # Log the incoming data
-        logger.info("Received onboarding data", extra={
-            "firstName": data.firstName,
-            "lastName": data.lastName,
-            "intakeDate": data.intakeDate
-        })
-        
-        # Convert data to dictionary for response
-        response_data = data.dict()
-        
-        # Log full data for debugging
-        logger.debug("Full onboarding data", extra={"data": response_data})
-        
-        # Here you'll later add your RDS connection logic
-        
+def lambda_handler(event, context):
+    """Single entry point for all requests"""
+    # Always include CORS headers
+    cors_headers = get_cors_headers()
+    
+    # Handle preflight OPTIONS request
+    if event.get('httpMethod') == 'OPTIONS':
         return {
-            "success": True,
-            "message": "Onboarding data received successfully",
-            "data": response_data
+            'statusCode': 200,
+            'headers': cors_headers,
+            'body': json.dumps({})
+        }
+    
+    # Handle POST request
+    try:
+        # Parse and validate request body
+        body = json.loads(event.get('body', '{}'))
+        onboarding_data = OnboardingData(**body)
+        
+        # Process the data (add your processing logic here)
+        print(f"Processing onboarding data for {onboarding_data.firstName} {onboarding_data.lastName}")
+        
+        # Return success response
+        return {
+            'statusCode': 200,
+            'headers': cors_headers,
+            'body': json.dumps({
+                'success': True,
+                'message': 'Onboarding data received successfully',
+                'data': {
+                    'name': f"{onboarding_data.firstName} {onboarding_data.lastName}",
+                    'intake_date': onboarding_data.intakeDate
+                }
+            })
         }
     except Exception as e:
-        logger.error(f"Error processing onboarding data: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
-
-# Create Lambda handler
-handler = Mangum(app)
-
-# This is for local development
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        # Log the error for debugging
+        print(f"Error processing request: {str(e)}")
+        
+        # Return error response with appropriate status code
+        status_code = 400 if isinstance(e, ValueError) else 500
+        return {
+            'statusCode': status_code,
+            'headers': cors_headers,
+            'body': json.dumps({
+                'success': False,
+                'message': 'Failed to process onboarding data',
+                'error': str(e)
+            })
+        }
