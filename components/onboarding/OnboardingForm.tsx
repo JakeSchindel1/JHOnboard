@@ -431,14 +431,13 @@ export default function OnboardingForm() {
         throw new Error('All authorized people must have complete information');
       }
 
-      const response = await fetch('https://hssu7ggkl4.execute-api.us-east-1.amazonaws.com/default/onboarding-api', {
+      const response = await fetch('https://zy0yj0cypj.execute-api.us-east-1.amazonaws.com/prod/onboarding', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        mode: 'cors',  // This is fine
-        // Remove credentials: 'omit' since we're not using credentials
+        mode: 'cors',
         body: JSON.stringify(standardizedFormData),
       });
 
