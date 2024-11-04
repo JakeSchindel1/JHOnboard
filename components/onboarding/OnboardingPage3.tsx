@@ -4,42 +4,51 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Shield, Contact } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface FormData {
-  insured?: string;
-  insuranceType?: string;
-  policyNumber?: string;
-  emergencyContactFirstName?: string;
-  emergencyContactLastName?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelationship?: string;
+  insured: boolean | null;
+  insuranceType: string | null;
+  policyNumber: string | null;
+  emergencyContactFirstName: string;
+  emergencyContactLastName: string;
+  emergencyContactPhone: string;
+  emergencyContactRelationship: string;
   otherRelationship?: string;
 }
 
 interface OnboardingPage3Props {
   formData: FormData;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string) => void;
+  handleSelectChange: (name: string, value: string | boolean | null) => void;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export default function OnboardingPage3({
-  formData = {},
+  formData,
   handleInputChange,
   handleSelectChange,
   setCurrentPage
 }: OnboardingPage3Props) {
   const {
-    insured = '',
-    insuranceType = '',
-    policyNumber = '',
+    insured = null,
+    insuranceType = null,
+    policyNumber = null,
     emergencyContactFirstName = '',
     emergencyContactLastName = '',
     emergencyContactPhone = '',
     emergencyContactRelationship = '',
     otherRelationship = ''
   } = formData;
+
+  const handleInsuranceChange = (value: string) => {
+    const isInsured = value === "yes";
+    handleSelectChange('insured', isInsured);
+
+    if (!isInsured) {
+      handleSelectChange('insuranceType', 'none');  // Changed from null to 'none'
+      handleSelectChange('policyNumber', 'none');   // Changed from null to 'none'
+    }
+  };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
@@ -66,6 +75,11 @@ export default function OnboardingPage3({
     handleInputChange(newEvent);
   };
 
+  const handlePolicyNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    handleSelectChange('policyNumber', value || 'none');  // Changed from null to 'none'
+  };
+
   const isEmergencyContactComplete = () => {
     if (emergencyContactRelationship === 'other') {
       return (
@@ -84,15 +98,7 @@ export default function OnboardingPage3({
     );
   };
 
-  const handleNextPage = () => {
-    if (!isEmergencyContactComplete()) {
-      alert('Please complete all emergency contact fields before proceeding.');
-      return;
-    }
-    setCurrentPage(prev => prev + 1);
-  };
-
-  const isInsuranceFieldsDisabled = insured === 'no';
+  const isInsuranceFieldsDisabled = !insured;
 
   return (
     <div className="space-y-8">
@@ -115,8 +121,8 @@ export default function OnboardingPage3({
             <div className="space-y-2">
               <Label htmlFor="insured" className="text-base font-medium">Insurance Status</Label>
               <Select 
-                value={insured} 
-                onValueChange={(value) => handleSelectChange('insured', value)}
+                value={insured === null ? '' : (insured ? "yes" : "no")}
+                onValueChange={handleInsuranceChange}
               >
                 <SelectTrigger id="insured" className="bg-white">
                   <SelectValue placeholder="Select insurance status" />
@@ -138,8 +144,8 @@ export default function OnboardingPage3({
                 Insurance Type
               </Label>
               <Select 
-                value={insuranceType} 
-                onValueChange={(value) => handleSelectChange('insuranceType', value)}
+                value={insuranceType || ''} 
+                onValueChange={(value) => handleSelectChange('insuranceType', value || 'none')}  // Changed from null to 'none'
                 disabled={isInsuranceFieldsDisabled}
               >
                 <SelectTrigger 
@@ -170,11 +176,10 @@ export default function OnboardingPage3({
               <Input
                 id="policyNumber"
                 name="policyNumber"
-                value={policyNumber}
-                onChange={handleInputChange}
+                value={policyNumber || ''}
+                onChange={handlePolicyNumberChange}
                 className={`bg-white ${isInsuranceFieldsDisabled ? 'opacity-50' : ''}`}
                 placeholder="Enter your policy number"
-                required
                 disabled={isInsuranceFieldsDisabled}
               />
               <p className={`text-sm ${isInsuranceFieldsDisabled ? 'text-gray-400' : 'text-gray-500'}`}>

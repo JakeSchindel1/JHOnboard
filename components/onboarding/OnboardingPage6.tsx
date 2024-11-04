@@ -10,17 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface OnboardingPage6Props {
   formData: {
     medications: string[];
-    matMedication?: string;
-    matMedicationOther?: string;
-    medicationSignature?: string;
-    medicationSignatureDate?: string;
-    medicationWitnessSignature?: string;
-    medicationWitnessTimestamp?: string;
-    medicationSignatureId?: string;
+    matMedication: string | null;
+    matMedicationOther: string;
+    medicationSignature: string;
+    medicationSignatureDate: string;
+    medicationWitnessSignature: string;
+    medicationWitnessTimestamp: string;
+    medicationSignatureId: string;
   };
-  isOnMAT: boolean;
+  isOnMAT: boolean | null;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string | string[]) => void;
+  handleSelectChange: (name: string, value: string | string[] | boolean | null) => void;
 }
 
 const generateSignatureId = () => {
@@ -71,6 +71,13 @@ export default function OnboardingPage6({
       const now = new Date();
       const timestamp = now.toISOString();
       handleSelectChange('medicationWitnessTimestamp', timestamp);
+    }
+  };
+
+  const handleMatMedicationChange = (value: string) => {
+    handleSelectChange('matMedication', value === '' ? null : value);
+    if (value !== 'other') {
+      handleSelectChange('matMedicationOther', '');
     }
   };
 
@@ -132,7 +139,7 @@ export default function OnboardingPage6({
         </CardHeader>
         <CardContent className="space-y-4">
           {/* MAT Medication Section - Only shows if isOnMAT is true */}
-          {isOnMAT && (
+          {isOnMAT === true && (
             <div className="mb-6">
               <Card className="bg-blue-50">
                 <CardHeader>
@@ -141,7 +148,7 @@ export default function OnboardingPage6({
                 <CardContent>
                   <Select
                     value={formData.matMedication || ''}
-                    onValueChange={(value) => handleSelectChange('matMedication', value)}
+                    onValueChange={handleMatMedicationChange}
                   >
                     <SelectTrigger className="bg-white">
                       <SelectValue placeholder="Select your MAT medication" />
@@ -170,7 +177,7 @@ export default function OnboardingPage6({
                     <Input
                       className="mt-2 bg-white"
                       placeholder="Please specify your MAT medication"
-                      value={formData.matMedicationOther || ''}
+                      value={formData.matMedicationOther}
                       onChange={(e) => handleSelectChange('matMedicationOther', e.target.value)}
                     />
                   )}
@@ -235,7 +242,7 @@ export default function OnboardingPage6({
                 <Input
                   id="medicationSignature"
                   name="medicationSignature"
-                  value={formData.medicationSignature || ''}
+                  value={formData.medicationSignature}
                   onChange={handleSignature}
                   required
                   placeholder="Type your full legal name to sign"
@@ -262,7 +269,7 @@ export default function OnboardingPage6({
                 <Input
                   id="medicationWitnessSignature"
                   name="medicationWitnessSignature"
-                  value={formData.medicationWitnessSignature || ''}
+                  value={formData.medicationWitnessSignature}
                   onChange={handleWitnessSignature}
                   required
                   disabled={!formData.medicationSignature}

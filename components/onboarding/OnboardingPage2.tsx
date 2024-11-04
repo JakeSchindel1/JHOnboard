@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,14 +20,21 @@ interface OnboardingPage2Props {
   formData: FormData;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSelectChange: (name: string, value: string) => void;
+  handleVehicleToggle: (hasNoVehicle: boolean) => void;
 }
 
 export default function OnboardingPage2({
   formData = {},
   handleInputChange,
-  handleSelectChange
+  handleSelectChange,
+  handleVehicleToggle
 }: OnboardingPage2Props) {
   const [showSSN, setShowSSN] = useState(false);
+  
+  // Derive noCar state from form data
+  const noCar = formData.vehicleMake === 'null' && 
+                formData.vehicleModel === 'null' && 
+                formData.vehicleTagNumber === 'null';
 
   const {
     socialSecurityNumber = '',
@@ -39,10 +46,9 @@ export default function OnboardingPage2({
     vehicleModel = ''
   } = formData;
 
-  const handleSSNChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-    value = value.replace(/[^\d]/g, '');
-    value = value.slice(0, 9);
+  // Memoized handler for SSN formatting
+  const handleSSNChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/[^\d]/g, '').slice(0, 9);
     
     if (value.length > 5) {
       value = `${value.slice(0, 3)}-${value.slice(3, 5)}-${value.slice(5)}`;
@@ -50,17 +56,18 @@ export default function OnboardingPage2({
       value = `${value.slice(0, 3)}-${value.slice(3)}`;
     }
 
-    const newEvent = {
-      ...e,
+    handleInputChange({
       target: {
-        ...e.target,
         name: 'socialSecurityNumber',
-        value: value
+        value
       }
-    };
+    } as React.ChangeEvent<HTMLInputElement>);
+  }, [handleInputChange]);
 
-    handleInputChange(newEvent);
-  };
+  // Memoized handler for showing/hiding SSN
+  const toggleSSNVisibility = useCallback(() => {
+    setShowSSN(prev => !prev);
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -101,7 +108,7 @@ export default function OnboardingPage2({
                   variant="ghost"
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                  onClick={() => setShowSSN(!showSSN)}
+                  onClick={toggleSSNVisibility}
                 >
                   {showSSN ? (
                     <EyeOff className="h-4 w-4 text-gray-500" />
@@ -168,10 +175,33 @@ export default function OnboardingPage2({
       {/* Vehicle Information Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Car className="h-5 w-5 text-green-500" />
-            Vehicle Information
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Car className="h-5 w-5 text-green-500" />
+              Vehicle Information
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="no-car" className="text-sm font-medium">
+                No Vehicle
+              </Label>
+              <button
+                id="no-car"
+                type="button"
+                role="switch"
+                aria-checked={noCar}
+                onClick={() => handleVehicleToggle(!noCar)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
+                  noCar ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    noCar ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid md:grid-cols-3 gap-6">
@@ -183,10 +213,11 @@ export default function OnboardingPage2({
               <Input
                 id="vehicleMake"
                 name="vehicleMake"
-                value={vehicleMake}
+                value={vehicleMake === 'null' ? '' : vehicleMake}
                 onChange={handleInputChange}
-                className="bg-white"
+                className={`bg-white ${noCar ? 'opacity-50' : ''}`}
                 placeholder="e.g., Toyota"
+                disabled={noCar}
               />
               <p className="text-sm text-gray-500">Brand of your vehicle</p>
             </div>
@@ -199,10 +230,11 @@ export default function OnboardingPage2({
               <Input
                 id="vehicleModel"
                 name="vehicleModel"
-                value={vehicleModel}
+                value={vehicleModel === 'null' ? '' : vehicleModel}
                 onChange={handleInputChange}
-                className="bg-white"
+                className={`bg-white ${noCar ? 'opacity-50' : ''}`}
                 placeholder="e.g., Camry"
+                disabled={noCar}
               />
               <p className="text-sm text-gray-500">Model of your vehicle</p>
             </div>
@@ -215,10 +247,11 @@ export default function OnboardingPage2({
               <Input
                 id="vehicleTagNumber"
                 name="vehicleTagNumber"
-                value={vehicleTagNumber}
+                value={vehicleTagNumber === 'null' ? '' : vehicleTagNumber}
                 onChange={handleInputChange}
-                className="bg-white"
+                className={`bg-white ${noCar ? 'opacity-50' : ''}`}
                 placeholder="e.g., ABC-1234"
+                disabled={noCar}
               />
               <p className="text-sm text-gray-500">Your vehicle&apos;s license plate number</p>
             </div>

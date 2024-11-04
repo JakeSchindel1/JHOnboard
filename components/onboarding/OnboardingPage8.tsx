@@ -20,9 +20,9 @@ interface OnboardingPage8Props {
     treatmentSignature?: string;
     treatmentAgreed?: boolean;
     treatmentTimestamp?: string;
-    witnessSignature?: string;
-    witnessTimestamp?: string;
-    signatureId?: string;
+    treatmentwitnessSignature?: string;
+    treatmentwitnessTimestamp?: string;
+    treatmentsignatureId?: string;
   };
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSelectChange: (name: string, value: string) => void;
@@ -63,7 +63,7 @@ export default function OnboardingPage8({
       const timestamp = now.toISOString();
       const signatureId = generateSignatureId();
       handleSelectChange('treatmentTimestamp', timestamp);
-      handleSelectChange('signatureId', signatureId);
+      handleSelectChange('treatmentsignatureId', signatureId);
     }
   };
 
@@ -72,7 +72,7 @@ export default function OnboardingPage8({
     if (e.target.value) {
       const now = new Date();
       const timestamp = now.toISOString();
-      handleSelectChange('witnessTimestamp', timestamp);
+      handleSelectChange('treatmentwitnessTimestamp', timestamp);
     }
   };
 
@@ -311,7 +311,7 @@ export default function OnboardingPage8({
                 {formData.treatmentTimestamp && (
                   <div className="mt-3 text-sm text-gray-500">
                     <p>Signed on: {new Date(formData.treatmentTimestamp).toLocaleString()}</p>
-                    <p>Signature ID: {formData.signatureId}</p>
+                    <p>Signature ID: {formData.treatmentsignatureId}</p>
                   </div>
                 )}
               </div>
@@ -320,13 +320,13 @@ export default function OnboardingPage8({
             {/* Witness Signature */}
             <div className="space-y-3">
               <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="witnessSignature" className="text-base font-semibold block mb-2">
+                <Label htmlFor="treatmentwitnessSignature" className="text-base font-semibold block mb-2">
                   Witness Signature
                 </Label>
                 <Input
-                  id="witnessSignature"
-                  name="witnessSignature"
-                  value={formData.witnessSignature || ''}
+                  id="treatmentwitnessSignature"
+                  name="treatmentwitnessSignature"
+                  value={formData.treatmentwitnessSignature || ''}
                   onChange={handleWitnessSignature}
                   required
                   disabled={!formData.treatmentSignature}
@@ -336,9 +336,9 @@ export default function OnboardingPage8({
                 <p className="text-sm text-gray-600 mt-2">
                   As a witness, your signature verifies that you observed the resident sign this document.
                 </p>
-                {formData.witnessTimestamp && (
+                {formData.treatmentwitnessTimestamp && (
                   <p className="mt-3 text-sm text-gray-500">
-                    Witnessed on: {new Date(formData.witnessTimestamp).toLocaleString()}
+                    Witnessed on: {new Date(formData.treatmentwitnessTimestamp).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -350,9 +350,9 @@ export default function OnboardingPage8({
             <p className="text-sm text-gray-500">
               This digital signature agreement is legally binding and includes a timestamp record of both signatures.
             </p>
-            {formData.signatureId && (
+            {formData.treatmentsignatureId && (
               <p className="text-sm font-medium">
-                Document Reference Number: {formData.signatureId}
+                Document Reference Number: {formData.treatmentsignatureId}
               </p>
             )}
           </div>

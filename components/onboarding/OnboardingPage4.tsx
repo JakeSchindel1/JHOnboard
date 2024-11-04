@@ -5,17 +5,20 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ClipboardList, FileText } from "lucide-react";
 
+interface FormData {
+  dualDiagnosis: boolean | null;
+  mat: boolean | null;
+  matMedication: string | null;
+  needPsychMedication: boolean | null;
+  hasProbationOrPretrial: boolean | null;
+  jurisdiction: string | null;
+  otherJurisdiction?: string;
+}
+
 interface OnboardingPage4Props {
-  formData: {
-    dualDiagnosis?: string;
-    mat: boolean;
-    needPsychMedication?: string;
-    hasProbationOrPretrial?: string;
-    jurisdiction?: string;
-    otherJurisdiction?: string;
-  };
+  formData: FormData;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string | boolean) => void;
+  handleSelectChange: (name: string, value: string | boolean | null) => void;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
 }
 
@@ -25,16 +28,43 @@ export default function OnboardingPage4({
   handleSelectChange,
   setCurrentPage
 }: OnboardingPage4Props) {
+  const {
+    dualDiagnosis = null,
+    mat = null,
+    matMedication = null,
+    needPsychMedication = null,
+    hasProbationOrPretrial = null,
+    jurisdiction = null,
+    otherJurisdiction = ''
+  } = formData;
+
   const handleMatChange = (value: string) => {
-    handleSelectChange('mat', value === 'yes');
+    const isMatNeeded = value === 'yes';
+    handleSelectChange('mat', isMatNeeded);
+    if (!isMatNeeded) {
+      handleSelectChange('matMedication', 'none');  // Changed from null to 'none'
+    }
   };
 
   const handleProbationChange = (value: string) => {
-    handleSelectChange('hasProbationOrPretrial', value);
-    if (value === 'no') {
-      handleSelectChange('jurisdiction', 'none');
+    const hasLegalStatus = value === 'yes';
+    handleSelectChange('hasProbationOrPretrial', hasLegalStatus);
+    if (!hasLegalStatus) {
+      handleSelectChange('jurisdiction', 'none');  // Changed from null to 'none'
       handleSelectChange('otherJurisdiction', '');
     }
+  };
+
+  const handleJurisdictionChange = (value: string) => {
+    handleSelectChange('jurisdiction', value);  // Removed the null condition since we'll use 'none'
+    if (value !== 'other') {
+      handleSelectChange('otherJurisdiction', '');
+    }
+  };
+
+  // Add handler for MAT medication if not already present
+  const handleMatMedicationChange = (value: string) => {
+    handleSelectChange('matMedication', value || 'none');  // Ensure we never set null
   };
 
   return (
@@ -55,14 +85,14 @@ export default function OnboardingPage4({
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Form Group Container */}
+            {/* Dual Diagnosis */}
             <div className="flex flex-col h-36">
               <Label htmlFor="dualDiagnosis" className="text-base font-medium mb-2">
                 Dual Diagnosis
               </Label>
               <Select 
-                value={formData.dualDiagnosis || ''} 
-                onValueChange={(value) => handleSelectChange('dualDiagnosis', value)}
+                value={dualDiagnosis === null ? '' : (dualDiagnosis ? 'yes' : 'no')}
+                onValueChange={(value) => handleSelectChange('dualDiagnosis', value === '' ? null : value === 'yes')}
               >
                 <SelectTrigger id="dualDiagnosis" className="bg-white mb-2">
                   <SelectValue placeholder="Select dual diagnosis status" />
@@ -77,12 +107,13 @@ export default function OnboardingPage4({
               </p>
             </div>
 
+            {/* MAT Status */}
             <div className="flex flex-col h-36">
               <Label htmlFor="mat" className="text-base font-medium mb-2">
                 MAT (Medication-Assisted Treatment)
               </Label>
               <Select 
-                value={formData.mat ? "yes" : "no"}
+                value={mat === null ? '' : (mat ? 'yes' : 'no')}
                 onValueChange={handleMatChange}
               >
                 <SelectTrigger id="mat" className="bg-white mb-2">
@@ -98,13 +129,40 @@ export default function OnboardingPage4({
               </p>
             </div>
 
+            {/* MAT Medication (if applicable) */}
+            {mat && (
+              <div className="flex flex-col h-36">
+                <Label htmlFor="matMedication" className="text-base font-medium mb-2">
+                  MAT Medication
+                </Label>
+                <Select
+                  value={matMedication || 'none'}
+                  onValueChange={handleMatMedicationChange}
+                >
+                  <SelectTrigger id="matMedication" className="bg-white mb-2">
+                    <SelectValue placeholder="Select MAT medication" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="suboxone">Suboxone</SelectItem>
+                    <SelectItem value="methadone">Methadone</SelectItem>
+                    <SelectItem value="vivitrol">Vivitrol</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-gray-500">
+                  Select your current MAT medication
+                </p>
+              </div>
+            )}
+
+            {/* Psychiatric Medication */}
             <div className="flex flex-col h-36">
               <Label htmlFor="needPsychMedication" className="text-base font-medium mb-2">
                 Need Psychiatric Medication
               </Label>
               <Select 
-                value={formData.needPsychMedication || ''} 
-                onValueChange={(value) => handleSelectChange('needPsychMedication', value)}
+                value={needPsychMedication === null ? '' : (needPsychMedication ? 'yes' : 'no')}
+                onValueChange={(value) => handleSelectChange('needPsychMedication', value === '' ? null : value === 'yes')}
               >
                 <SelectTrigger id="needPsychMedication" className="bg-white mb-2">
                   <SelectValue placeholder="Select psychiatric medication need" />
@@ -132,12 +190,13 @@ export default function OnboardingPage4({
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
+            {/* Probation Status */}
             <div className="flex flex-col h-36">
               <Label htmlFor="hasProbationOrPretrial" className="text-base font-medium mb-2">
                 Probation or Pretrial
               </Label>
               <Select 
-                value={formData.hasProbationOrPretrial || ''} 
+                value={hasProbationOrPretrial === null ? '' : (hasProbationOrPretrial ? 'yes' : 'no')}
                 onValueChange={handleProbationChange}
               >
                 <SelectTrigger id="hasProbationOrPretrial" className="bg-white mb-2">
@@ -153,17 +212,18 @@ export default function OnboardingPage4({
               </p>
             </div>
 
+            {/* Jurisdiction */}
             <div className="flex flex-col h-36">
               <Label 
                 htmlFor="jurisdiction" 
-                className={`text-base font-medium mb-2 ${formData.hasProbationOrPretrial === 'no' ? 'text-gray-400' : ''}`}
+                className={`text-base font-medium mb-2 ${!hasProbationOrPretrial ? 'text-gray-400' : ''}`}
               >
                 Jurisdiction
               </Label>
               <Select 
-                value={formData.hasProbationOrPretrial === 'no' ? 'none' : (formData.jurisdiction || '')}
-                onValueChange={(value) => handleSelectChange('jurisdiction', value)}
-                disabled={formData.hasProbationOrPretrial === 'no'}
+                value={jurisdiction || 'none'}
+                onValueChange={handleJurisdictionChange}
+                disabled={!hasProbationOrPretrial}
               >
                 <SelectTrigger id="jurisdiction" className="bg-white mb-2">
                   <SelectValue placeholder="Select jurisdiction" />
@@ -173,15 +233,16 @@ export default function OnboardingPage4({
                   <SelectItem value="chesterfield">Chesterfield</SelectItem>
                   <SelectItem value="richmond">Richmond City</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
-                  <SelectItem value="none">--</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                 </SelectContent>
               </Select>
-              <p className={`text-sm ${formData.hasProbationOrPretrial === 'no' ? 'text-gray-400' : 'text-gray-500'}`}>
+              <p className={`text-sm ${!hasProbationOrPretrial ? 'text-gray-400' : 'text-gray-500'}`}>
                 Select the jurisdiction of your case
               </p>
             </div>
 
-            {formData.jurisdiction === 'other' && formData.hasProbationOrPretrial !== 'no' && (
+            {/* Other Jurisdiction */}
+            {jurisdiction === 'other' && hasProbationOrPretrial && (
               <div className="flex flex-col h-36">
                 <Label htmlFor="otherJurisdiction" className="text-base font-medium mb-2">
                   Other Jurisdiction
@@ -189,7 +250,7 @@ export default function OnboardingPage4({
                 <Input
                   id="otherJurisdiction"
                   name="otherJurisdiction"
-                  value={formData.otherJurisdiction || ''}
+                  value={otherJurisdiction || ''}
                   onChange={handleInputChange}
                   required
                   className="bg-white mb-2"
