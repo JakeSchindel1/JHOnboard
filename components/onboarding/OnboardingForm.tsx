@@ -437,8 +437,8 @@ export default function OnboardingForm() {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        mode: 'cors',
-        credentials: 'omit',
+        mode: 'cors',  // This is fine
+        // Remove credentials: 'omit' since we're not using credentials
         body: JSON.stringify(standardizedFormData),
       });
 
