@@ -431,36 +431,45 @@ export default function OnboardingForm() {
         throw new Error('All authorized people must have complete information');
       }
 
-      const response = await fetch('https://zy0yj0cypj.execute-api.us-east-1.amazonaws.com/prod/onboarding', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
-        body: JSON.stringify(standardizedFormData),
-      });
-
-      const responseText = await response.text();
-      let data: ApiResponse;
-      try {
-        data = JSON.parse(responseText) as ApiResponse;
-      } catch (parseError) {
-        throw new Error('Invalid JSON response from server');
+      const submitData = async (standardizedFormData: FormData) => {
+        console.log('Sending data:', JSON.stringify(standardizedFormData, null, 2));
+      
+        try {
+          const response = await fetch('https://zy0yj0cypj.execute-api.us-east-1.amazonaws.com/prod/onboarding', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            mode: 'cors',
+            body: JSON.stringify({
+              body: standardizedFormData
+            }),
+          });
+      
+          const responseText = await response.text();
+          console.log('Raw response:', responseText);
+      
+          try {
+            const data = JSON.parse(responseText);
+            console.log('Parsed response:', data);
+            return data;
+          } catch (parseError) {
+            console.error('Failed to parse response:', parseError);
+            throw new Error('Invalid JSON response from server');
+          }
+        } catch (error) {
+          console.error('Request failed:', error);
+          throw error;
+        }
+      };
+      
+      const result = await submitData(standardizedFormData);
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Form submission failed');
       }
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || 
-          data.message || 
-          `Server error: ${response.status} ${response.statusText}`
-        );
-      }
-
-      if (!data.success) {
-        throw new Error(data.message || 'Form submission failed');
-      }
-
+      
       router.push('/success');
     } catch (error) {
       setSubmitError(
