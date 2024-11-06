@@ -447,17 +447,15 @@ export default function OnboardingForm() {
             }),
           });
       
-          const responseText = await response.text();
-          console.log('Raw response:', responseText);
-      
-          try {
-            const data = JSON.parse(responseText);
-            console.log('Parsed response:', data);
-            return data;
-          } catch (parseError) {
-            console.error('Failed to parse response:', parseError);
-            throw new Error('Invalid JSON response from server');
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
+      
+          const data = await response.json();
+          const parsedBody = JSON.parse(data.body);
+          console.log('Parsed response:', parsedBody);
+      
+          return parsedBody;
         } catch (error) {
           console.error('Request failed:', error);
           throw error;
