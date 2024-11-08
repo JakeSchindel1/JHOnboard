@@ -409,4 +409,117 @@ class DatabaseOperations:
 
 app = func.FunctionApp()
 
-@app.
+
+def save_to_database(data: OnboardingData) -> int:
+    """Save all onboarding data to database"""
+    with DatabaseOperations() as db:
+        participant_id = db.insert_participant(data)
+        db.insert_sensitive_info(participant_id, data.socialSecurityNumber)
+        db.insert_vehicle(participant_id, data)
+        db.insert_insurance(participant_id, data)
+        db.insert_emergency_contact(participant_id, data)
+        db.insert_medical_info(participant_id, data)
+        db.insert_medications(participant_id, data.medications)
+        db.insert_legal_info(participant_id, data)
+        db.insert_authorized_people(participant_id, data.authorizedPeople)
+        db.insert_consents(participant_id, data)
+        return participant_id
+
+# Then the app and route handler
+app = func.FunctionApp()
+
+@app.route(route="intake", methods=["POST"])
+def intake(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        logger.info("Starting to process intake form")
+        
+        # Parse the incoming JSON data
+        try:
+            intake_data = req.get_json()
+        except ValueError:
+            return func.HttpResponse(
+                json.dumps({
+                    'success': False,
+                    'message': 'Invalid JSON format'
+                }),
+                mimetype="application/json",
+                status_code=400
+            )
+        
+        # Validate the data using Pydantic
+        onboarding_data = OnboardingData(**intake_data)
+        logger.info("Data validation successful")
+        
+        # Save to database using context manager
+        participant_id = save_to_database(onboarding_data)
+        logger.info(f"Successfully saved participant with ID: {participant_id}")
+        
+        return func.HttpResponse(
+            json.dumps({
+                'success': True,
+                'message': 'Intake form submitted successfully',
+                'participant_id': participant_id
+            }),
+            mimetype="application/json",
+            status_code=200
+        )
+        
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return func.HttpResponse(
+            json.dumps({
+                'success': False,
+                'message': 'Failed to process intake form',
+                'error': str(e)
+            }),
+            mimetype="application/json",
+            status_code=500
+        )
+
+@app.route(route="intake", methods=["POST"])
+def intake(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        logger.info("Starting to process intake form")
+        
+        # Parse the incoming JSON data
+        try:
+            intake_data = req.get_json()
+        except ValueError:
+            return func.HttpResponse(
+                json.dumps({
+                    'success': False,
+                    'message': 'Invalid JSON format'
+                }),
+                mimetype="application/json",
+                status_code=400
+            )
+        
+        # Validate the data using Pydantic
+        onboarding_data = OnboardingData(**intake_data)
+        logger.info("Data validation successful")
+        
+        # Save to database using context manager
+        participant_id = save_to_database(onboarding_data)
+        logger.info(f"Successfully saved participant with ID: {participant_id}")
+        
+        return func.HttpResponse(
+            json.dumps({
+                'success': True,
+                'message': 'Intake form submitted successfully',
+                'participant_id': participant_id
+            }),
+            mimetype="application/json",
+            status_code=200
+        )
+        
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return func.HttpResponse(
+            json.dumps({
+                'success': False,
+                'message': 'Failed to process intake form',
+                'error': str(e)
+            }),
+            mimetype="application/json",
+            status_code=500
+        )
