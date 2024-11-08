@@ -86,3 +86,18 @@ __pycache__/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Azure Functions
+.venv/
+__pycache__/
+local.settings.json
+
+# Python Azure Functions specific
+/api/local.settings.json
+/api/__pycache__/
+/api/*.pyc
+/api/*.pyo
+/api/*.pyd
+/api/bin
+/api/obj
+/api/env
