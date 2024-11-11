@@ -1,13 +1,22 @@
 {
-    "routes": [
-      {
-        "route": "/api/intake",
-        "methods": ["POST"],
-        "rewrite": "/api/intake"
+  "routes": [
+    {
+      "route": "/api/intake",
+      "methods": [
+        "post"
+      ],
+      "rewrite": "/api/intake",
+      "headers": {
+        "Content-Type": "application/json"
       }
-    ],
-    "navigationFallback": {
-      "rewrite": "/index.html",
-      "exclude": ["/images/*", "/css/*", "/js/*"]
     }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/images/*",
+      "/css/*",
+      "/js/*"
+    ]
   }
+}
