@@ -1,0 +1,13 @@
+{
+    "routes": [
+      {
+        "route": "/api/intake",
+        "methods": ["POST"],
+        "rewrite": "/api/intake"
+      }
+    ],
+    "navigationFallback": {
+      "rewrite": "/index.html",
+      "exclude": ["/images/*", "/css/*", "/js/*"]
+    }
+  }
