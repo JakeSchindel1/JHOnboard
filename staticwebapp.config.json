@@ -3,11 +3,15 @@
       {
         "route": "/api/intake",
         "methods": ["POST"],
-        "rewrite": "/api/intake"
+        "rewrite": "/api/intake",
+        "allowedRoles": ["anonymous"]
       }
     ],
     "navigationFallback": {
       "rewrite": "/index.html",
       "exclude": ["/images/*", "/css/*", "/js/*"]
+    },
+    "platform": {
+      "apiRuntime": "python:3.9"
     }
   }
