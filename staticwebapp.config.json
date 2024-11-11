@@ -7,10 +7,6 @@
         "allowedRoles": ["anonymous"]
       }
     ],
-    "navigationFallback": {
-      "rewrite": "/index.html",
-      "exclude": ["/images/*", "/css/*", "/js/*"]
-    },
     "platform": {
       "apiRuntime": "python:3.9"
     }
