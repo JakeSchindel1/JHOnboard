@@ -42,6 +42,12 @@ jobs:
         run: |
           npm install
           npm run build
+          
+          # Ensure API directory exists in build output
+          mkdir -p .next/api
+          
+          # Copy database config file to the correct location
+          cp app/api/database.config.json .next/api/
 
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
@@ -62,9 +68,13 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_WHITE_RIVER_06F67820F }}
           action: "upload"
           app_location: "/"
-          api_location: "/api"
+          # Change api_location to point to the Next.js API routes
+          api_location: "app/api"
           output_location: ".next"
           github_id_token: ${{ steps.idtoken.outputs.result }}
+          # Add config file patterns to include
+          config_file_location: "/"
+          include_files: "database.config.json"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
