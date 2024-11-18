@@ -1,5 +1,6 @@
 {
-    "name": "MyDatabaseConnection",
+  "data-source": {
+    "name": "ParticipantDatabase",
     "type": "sqlserver",
     "connectionDetails": {
       "server": "%DB_SERVER%",
@@ -12,4 +13,169 @@
         "encrypt": true
       }
     }
+  },
+  "runtime": {
+    "rest": {
+      "enabled": true,
+      "path": "/api"
+    }
+  },
+  "entities": {
+    "Participants": {
+      "source": "dbo.participants",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update"]
+      }],
+      "relationships": {
+        "sensitive_info": {
+          "cardinality": "one",
+          "target": "ParticipantSensitiveInfo",
+          "linking": {
+            "participant_id": "participant_id"
+          }
+        },
+        "vehicles": {
+          "cardinality": "many",
+          "target": "Vehicles",
+          "linking": {
+            "participant_id": "participant_id"
+          }
+        },
+        "insurance": {
+          "cardinality": "one",
+          "target": "Insurance",
+          "linking": {
+            "participant_id": "participant_id"
+          }
+        },
+        "emergency_contacts": {
+          "cardinality": "many",
+          "target": "EmergencyContacts",
+          "linking": {
+            "participant_id": "participant_id"
+          }
+        },
+        "medical_info": {
+          "cardinality": "one",
+          "target": "MedicalInfo",
+          "linking": {
+            "participant_id": "participant_id"
+          }
+        },
+        "medications": {
+          "cardinality": "many",
+          "target": "Medications",
+          "linking": {
+            "participant_id": "participant_id"
+          }
+        },
+        "legal_info": {
+          "cardinality": "one",
+          "target": "LegalInfo",
+          "linking": {
+            "participant_id": "participant_id"
+          }
+        },
+        "authorized_people": {
+          "cardinality": "many",
+          "target": "AuthorizedPeople",
+          "linking": {
+            "participant_id": "participant_id"
+          }
+        },
+        "consents": {
+          "cardinality": "one",
+          "target": "Consents",
+          "linking": {
+            "participant_id": "participant_id"
+          }
+        }
+      }
+    },
+    "ParticipantSensitiveInfo": {
+      "source": "dbo.participant_sensitive_info",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update"]
+      }]
+    },
+    "Vehicles": {
+      "source": "dbo.vehicles",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update", "delete"]
+      }]
+    },
+    "Insurance": {
+      "source": "dbo.insurance",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update"]
+      }]
+    },
+    "EmergencyContacts": {
+      "source": "dbo.emergency_contacts",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update", "delete"]
+      }]
+    },
+    "MedicalInfo": {
+      "source": "dbo.medical_info",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update"]
+      }]
+    },
+    "Medications": {
+      "source": "dbo.medications",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update", "delete"]
+      }]
+    },
+    "LegalInfo": {
+      "source": "dbo.legal_info",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update"]
+      }]
+    },
+    "AuthorizedPeople": {
+      "source": "dbo.authorized_people",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update", "delete"]
+      }]
+    },
+    "Consents": {
+      "source": "dbo.consents",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update"]
+      }]
+    },
+    "MedicationConsents": {
+      "source": "dbo.medication_consents",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update"]
+      }]
+    },
+    "TreatmentConsents": {
+      "source": "dbo.treatment_consents",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update"]
+      }]
+    },
+    "PriceConsents": {
+      "source": "dbo.price_consents",
+      "permissions": [{
+        "role": "authenticated",
+        "actions": ["create", "read", "update"]
+      }]
+    }
   }
+}
