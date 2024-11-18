@@ -1,0 +1,15 @@
+{
+    "name": "MyDatabaseConnection",
+    "type": "sqlserver",
+    "connectionDetails": {
+      "server": "%DB_SERVER%",
+      "database": "%DB_NAME%",
+      "authentication": {
+        "type": "azure-active-directory",
+        "method": "managed-identity"
+      },
+      "options": {
+        "encrypt": true
+      }
+    }
+  }
