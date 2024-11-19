@@ -6,8 +6,9 @@
       "server": "%DB_SERVER%",
       "database": "%DB_NAME%",
       "authentication": {
-        "type": "azure-active-directory",
-        "method": "managed-identity"
+        "type": "sql",
+        "username": "%DB_USER%",
+        "password": "%DB_PASSWORD%"
       },
       "options": {
         "encrypt": true
