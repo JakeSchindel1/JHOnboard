@@ -119,84 +119,66 @@ interface AuthorizedPerson {
       try {
         // Prepare the standardized payload
         const submitPayload = {
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
-          intakeDate: this.formatDate(formData.intakeDate),
-          housingLocation: formData.housingLocation.toLowerCase(),
-          dateOfBirth: this.formatDate(formData.dateOfBirth),
-          sex: formData.sex.toLowerCase(),
-          email: formData.email.toLowerCase().trim(),
-          driversLicenseNumber: formData.driversLicenseNumber?.trim() || '',
-          socialSecurityNumber: formData.socialSecurityNumber,
-          vehicleTagNumber: formData.vehicleTagNumber || '',
-          vehicleMake: formData.vehicleMake || '',
-          vehicleModel: formData.vehicleModel || '',
-          insured: formData.insured,
-          insuranceType: formData.insuranceType || '',
-          policyNumber: formData.policyNumber || '',
-          
-          // Emergency Contact
-          emergencyContactFirstName: formData.emergencyContactFirstName,
-          emergencyContactLastName: formData.emergencyContactLastName,
-          emergencyContactPhone: formData.emergencyContactPhone,
-          emergencyContactRelationship: formData.emergencyContactRelationship,
-          otherRelationship: formData.otherRelationship || '',
-          
-          // Medical Information
-          dualDiagnosis: formData.dualDiagnosis,
-          mat: formData.mat,
-          matMedication: formData.matMedication || '',
-          matMedicationOther: formData.matMedicationOther || '',
-          needPsychMedication: formData.needPsychMedication,
-          medications: formData.medications || [],
-          
-          // Legal Information
-          hasProbationOrPretrial: formData.hasProbationOrPretrial,
-          jurisdiction: formData.jurisdiction || '',
-          otherJurisdiction: formData.otherJurisdiction || '',
-          
-          // Consents
-          consentSignature: formData.consentSignature,
-          consentAgreed: formData.consentAgreed,
-          consentTimestamp: formData.consentTimestamp,
-          witnessSignature: formData.witnessSignature,
-          witnessTimestamp: formData.witnessTimestamp,
-          signatureId: formData.signatureId,
-          
-          // Medication Consent
-          medicationSignature: formData.medicationSignature,
-          medicationSignatureDate: formData.medicationSignatureDate,
-          medicationWitnessSignature: formData.medicationWitnessSignature,
-          medicationWitnessTimestamp: formData.medicationWitnessTimestamp,
-          medicationSignatureId: formData.medicationSignatureId,
-  
-          // Treatment Consent
-          treatmentSignature: formData.treatmentSignature || '',
-          treatmentAgreed: formData.treatmentAgreed || false,
-          treatmentTimestamp: formData.treatmentTimestamp || '',
-          treatmentwitnessSignature: formData.treatmentwitnessSignature || '',
-          treatmentwitnessTimestamp: formData.treatmentwitnessTimestamp || '',
-          treatmentsignatureId: formData.treatmentsignatureId || '',
-  
-          // Price Consent
-          priceConsentSignature: formData.priceConsentSignature || '',
-          priceConsentAgreed: formData.priceConsentAgreed || false,
-          priceConsentTimestamp: formData.priceConsentTimestamp || '',
-          priceWitnessSignature: formData.priceWitnessSignature || '',
-          priceWitnessTimestamp: formData.priceWitnessTimestamp || '',
-          priceSignatureId: formData.priceSignatureId || '',
-          
-          // Additional Required Arrays
-          authorizedPeople: formData.authorizedPeople.map(person => ({
-            firstName: person.firstName,
-            lastName: person.lastName,
-            relationship: person.relationship,
-            phone: person.phone
-          })),
-  
-          // Timestamp
-          createdAt: new Date().toISOString()
-        };
+            firstName: formData.firstName.trim(),
+            lastName: formData.lastName.trim(),
+            intakeDate: this.formatDate(formData.intakeDate),
+            housingLocation: formData.housingLocation.toLowerCase(),
+            dateOfBirth: this.formatDate(formData.dateOfBirth),
+            sex: formData.sex.toLowerCase(),
+            email: formData.email.toLowerCase().trim(),
+            driversLicenseNumber: formData.driversLicenseNumber?.trim() || '',
+            socialSecurityNumber: formData.socialSecurityNumber,
+            vehicleTagNumber: formData.vehicleTagNumber || '',
+            vehicleMake: formData.vehicleMake || '',
+            vehicleModel: formData.vehicleModel || '',
+            insured: formData.insured ? "yes" : "no",           
+            insuranceType: formData.insuranceType || '',
+            policyNumber: formData.policyNumber || '',
+            emergencyContactFirstName: formData.emergencyContactFirstName,
+            emergencyContactLastName: formData.emergencyContactLastName,
+            emergencyContactPhone: formData.emergencyContactPhone,
+            emergencyContactRelationship: formData.emergencyContactRelationship,
+            otherRelationship: formData.otherRelationship || '',
+            dualDiagnosis: formData.dualDiagnosis ? "yes" : "no",  
+            mat: formData.mat,                                      
+            matMedication: formData.matMedication || '',
+            matMedicationOther: formData.matMedicationOther || '',
+            needPsychMedication: formData.needPsychMedication ? "yes" : "no",  
+            medications: formData.medications || [],
+            hasProbationOrPretrial: formData.hasProbationOrPretrial ? "yes" : "no",  
+            jurisdiction: formData.jurisdiction || '',
+            otherJurisdiction: formData.otherJurisdiction || '',
+            consentSignature: formData.consentSignature,
+            consentAgreed: formData.consentAgreed,                
+            consentTimestamp: formData.consentTimestamp,
+            witnessSignature: formData.witnessSignature,
+            witnessTimestamp: formData.witnessTimestamp,
+            signatureId: formData.signatureId,
+            medicationSignature: formData.medicationSignature,
+            medicationSignatureDate: formData.medicationSignatureDate,
+            medicationWitnessSignature: formData.medicationWitnessSignature,
+            medicationWitnessTimestamp: formData.medicationWitnessTimestamp,
+            medicationSignatureId: formData.medicationSignatureId,
+            treatmentSignature: formData.treatmentSignature || '',
+            treatmentAgreed: formData.treatmentAgreed,             
+            treatmentTimestamp: formData.treatmentTimestamp || '',
+            treatmentwitnessSignature: formData.treatmentwitnessSignature || '',
+            treatmentwitnessTimestamp: formData.treatmentwitnessTimestamp || '',
+            treatmentsignatureId: formData.treatmentsignatureId || '',
+            priceConsentSignature: formData.priceConsentSignature || '',
+            priceConsentAgreed: formData.priceConsentAgreed,      
+            priceConsentTimestamp: formData.priceConsentTimestamp || '',
+            priceWitnessSignature: formData.priceWitnessSignature || '',
+            priceWitnessTimestamp: formData.priceWitnessTimestamp || '',
+            priceSignatureId: formData.priceSignatureId || '',
+            authorizedPeople: formData.authorizedPeople.map(person => ({
+              firstName: person.firstName,
+              lastName: person.lastName,
+              relationship: person.relationship,
+              phone: person.phone
+            })),
+            createdAt: new Date().toISOString()
+      };
   
         // Validate the payload before submission
         this.validatePayload(submitPayload);
