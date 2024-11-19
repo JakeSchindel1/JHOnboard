@@ -1,31 +1,34 @@
 import { NextResponse } from 'next/server'
 import { OnboardingSchema } from './schema'
 import { ZodError } from 'zod'
-import { ConnectionPool } from 'mssql'
-import { DefaultAzureCredential } from '@azure/identity'
+import sql from 'mssql' 
 
 // Create a connection using Managed Identity
 const getConnection = async () => {
   try {
-    const credential = new DefaultAzureCredential();
-    const token = await credential.getToken('https://database.windows.net/');
-    
-    return await new ConnectionPool({
+    const config = {
       server: 'journey-house.database.windows.net',
       database: process.env.DB_NAME,
-      authentication: {
-        type: 'azure-active-directory-access-token',
-        options: {
-          token: token.token,
-        },
-      },
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
       options: {
         encrypt: true
       }
-    }).connect();
-  } catch (err) {
-    console.error('Database connection error:', err);
-    throw err;
+    };
+
+    console.log('Attempting database connection...');
+    return await sql.connect(config);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Database connection error:', {
+        message: error.message,
+        name: error.name,
+        code: (error as any).code  // SQL specific error code
+      });
+    } else {
+      console.error('Unknown database connection error:', error);
+    }
+    throw error;
   }
 };
 
