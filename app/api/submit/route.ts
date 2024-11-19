@@ -7,23 +7,39 @@ import sql from 'mssql'
 const getConnection = async () => {
   try {
     const config = {
-      server: 'journey-house.database.windows.net',
+      server: process.env.DB_SERVER || 'journey-house.database.windows.net',
       database: process.env.DB_NAME,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       options: {
-        encrypt: true
+        encrypt: true,
+        trustServerCertificate: false,
+        enableArithAbort: true,
+        connectionTimeout: 60000,    // 60 seconds for connection
+        requestTimeout: 120000       // 120 seconds for queries
+      },
+      pool: {
+        max: 10,
+        min: 0,
+        idleTimeoutMillis: 60000     // 60 seconds idle timeout
       }
     };
 
-    console.log('Attempting database connection...');
+    // Log connection attempt (but not sensitive details)
+    console.log('Attempting database connection to:', config.server);
+    
+    // Validate required environment variables
+    if (!config.database || !config.user || !config.password) {
+      throw new Error('Missing required database configuration');
+    }
+
     return await sql.connect(config);
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error('Database connection error:', {
         message: error.message,
         name: error.name,
-        code: (error as any).code  // SQL specific error code
+        code: (error as any).code
       });
     } else {
       console.error('Unknown database connection error:', error);
