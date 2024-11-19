@@ -392,6 +392,8 @@ export default function OnboardingForm() {
         )
       };
 
+      console.log('Standardized Form Data:', JSON.stringify(standardizedFormData, null, 2));
+
       // Modified validation logic
       const missingFields = requiredFields.reduce((acc: string[], field) => {
         // Skip vehicle-related fields if they're marked as "null"
@@ -418,6 +420,7 @@ export default function OnboardingForm() {
       }, []);
 
       if (missingFields.length > 0) {
+        console.log('Missing Fields:', missingFields);
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
 
@@ -433,6 +436,7 @@ export default function OnboardingForm() {
 
       const submitData = async (standardizedFormData: FormData) => {
         try {
+          console.log('Starting participant creation...');
           // Create participant first
           const participantResponse = await fetch('/data-api/Participants', {
             method: 'POST',
@@ -450,25 +454,33 @@ export default function OnboardingForm() {
               drivers_license_number: standardizedFormData.driversLicenseNumber,
             })
           });
+
+          console.log('Participant Response:', await participantResponse.clone().json());
       
           if (!participantResponse.ok) {
+            console.error('Participant creation failed:', await participantResponse.text());
             throw new Error('Failed to create participant');
           }
       
           const participant = await participantResponse.json();
           const participantId = participant.id;
+
+          console.log('Created participant with ID:', participantId);
       
           // Create all related records in parallel
-          await Promise.all([
+          const promises = [
             // Sensitive Info
             fetch('/data-api/ParticipantSensitiveInfo', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 participant_id: participantId,
-                ssn_encrypted: standardizedFormData.socialSecurityNumber,  // Note: Ensure proper encryption
-                encryption_iv: null  // You'll need to implement proper encryption
+                ssn_encrypted: standardizedFormData.socialSecurityNumber,
+                encryption_iv: null
               })
+            }).then(async res => {
+              console.log('Sensitive Info Response:', await res.json());
+              return res;
             }),
       
             // Vehicle
@@ -481,6 +493,9 @@ export default function OnboardingForm() {
                 make: standardizedFormData.vehicleMake,
                 model: standardizedFormData.vehicleModel
               })
+            }).then(async res => {
+              console.log('Vehicle Response:', await res.json());
+              return res;
             }),
       
             // Insurance
@@ -493,6 +508,9 @@ export default function OnboardingForm() {
                 insurance_type: standardizedFormData.insuranceType,
                 policy_number: standardizedFormData.policyNumber
               })
+            }).then(async res => {
+              console.log('Insurance Response:', await res.json());
+              return res;
             }),
       
             // Emergency Contact
@@ -507,6 +525,9 @@ export default function OnboardingForm() {
                 relationship: standardizedFormData.emergencyContactRelationship,
                 other_relationship: standardizedFormData.otherRelationship
               })
+            }).then(async res => {
+              console.log('Emergency Contact Response:', await res.json());
+              return res;
             }),
       
             // Medical Info
@@ -521,6 +542,9 @@ export default function OnboardingForm() {
                 mat_medication_other: standardizedFormData.matMedicationOther,
                 need_psych_medication: standardizedFormData.needPsychMedication
               })
+            }).then(async res => {
+              console.log('Medical Info Response:', await res.json());
+              return res;
             }),
       
             // Medications
@@ -532,6 +556,9 @@ export default function OnboardingForm() {
                   participant_id: participantId,
                   medication_name: med
                 })
+              }).then(async res => {
+                console.log('Medication Response:', await res.json());
+                return res;
               })
             ),
       
@@ -545,6 +572,9 @@ export default function OnboardingForm() {
                 jurisdiction: standardizedFormData.jurisdiction,
                 other_jurisdiction: standardizedFormData.otherJurisdiction
               })
+            }).then(async res => {
+              console.log('Legal Info Response:', await res.json());
+              return res;
             }),
       
             // Authorized People
@@ -559,6 +589,9 @@ export default function OnboardingForm() {
                   relationship: person.relationship,
                   phone: person.phone
                 })
+              }).then(async res => {
+                console.log('Authorized Person Response:', await res.json());
+                return res;
               })
             ),
       
@@ -575,6 +608,9 @@ export default function OnboardingForm() {
                 witness_timestamp: standardizedFormData.witnessTimestamp,
                 signature_id: standardizedFormData.signatureId
               })
+            }).then(async res => {
+              console.log('Consents Response:', await res.json());
+              return res;
             }),
       
             fetch('/data-api/MedicationConsents', {
@@ -588,6 +624,9 @@ export default function OnboardingForm() {
                 medication_witness_timestamp: standardizedFormData.medicationWitnessTimestamp,
                 medication_signature_id: standardizedFormData.medicationSignatureId
               })
+            }).then(async res => {
+              console.log('Medication Consents Response:', await res.json());
+              return res;
             }),
       
             fetch('/data-api/TreatmentConsents', {
@@ -602,6 +641,9 @@ export default function OnboardingForm() {
                 treatment_witness_timestamp: standardizedFormData.treatmentwitnessTimestamp,
                 treatment_signature_id: standardizedFormData.treatmentsignatureId
               })
+            }).then(async res => {
+              console.log('Treatment Consents Response:', await res.json());
+              return res;
             }),
       
             fetch('/data-api/PriceConsents', {
@@ -616,8 +658,14 @@ export default function OnboardingForm() {
                 price_witness_timestamp: standardizedFormData.priceWitnessTimestamp,
                 price_signature_id: standardizedFormData.priceSignatureId
               })
+            }).then(async res => {
+              console.log('Price Consents Response:', await res.json());
+              return res;
             })
-          ]);
+          ];
+
+          await Promise.all(promises.filter(Boolean));
+          console.log('All submissions complete');
       
           return {
             success: true,
@@ -625,11 +673,16 @@ export default function OnboardingForm() {
             data: { participantId }
           };
       
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Submission error:', error);
+          console.error('Error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : 'No stack trace'
+          });
           throw error;
         }
       };
+
       const result = await submitData(standardizedFormData);
       
       if (!result.success) {
@@ -638,6 +691,7 @@ export default function OnboardingForm() {
       
       router.push('/success');
     } catch (error) {
+      console.error('Form submission error:', error);
       setSubmitError(
         error instanceof Error 
           ? error.message 
