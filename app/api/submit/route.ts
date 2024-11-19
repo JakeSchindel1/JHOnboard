@@ -15,35 +15,14 @@ const getConnection = async () => {
         encrypt: true,
         trustServerCertificate: false,
         enableArithAbort: true,
-        connectionTimeout: 60000,    // 60 seconds for connection
-        requestTimeout: 120000       // 120 seconds for queries
-      },
-      pool: {
-        max: 10,
-        min: 0,
-        idleTimeoutMillis: 60000     // 60 seconds idle timeout
+        connectionTimeout: 60000,
+        requestTimeout: 120000
       }
     };
 
-    // Log connection attempt (but not sensitive details)
-    console.log('Attempting database connection to:', config.server);
-    
-    // Validate required environment variables
-    if (!config.database || !config.user || !config.password) {
-      throw new Error('Missing required database configuration');
-    }
-
     return await sql.connect(config);
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error('Database connection error:', {
-        message: error.message,
-        name: error.name,
-        code: (error as any).code
-      });
-    } else {
-      console.error('Unknown database connection error:', error);
-    }
+  } catch (error) {
+    console.error('Connection error:', error);
     throw error;
   }
 };
@@ -52,23 +31,32 @@ export async function POST(request: Request) {
   let connection;
   try {
     const body = await request.json()
+    console.log('Received data:', {
+      ...body,
+      socialSecurityNumber: '[REDACTED]'  // Log data but protect sensitive info
+    });
+    
     const validatedData = OnboardingSchema.parse(body)
+    console.log('Data validation passed');
     
     connection = await getConnection();
     const transaction = connection.transaction();
-    await transaction.begin();
+    console.log('Starting transaction...');
 
     try {
-      // 1. Insert main participant record
+      await transaction.begin();
+
+      // 1. Insert main participant record with explicit parameter types
+      console.log('Attempting to insert participant record...');
       const participantResult = await transaction.request()
-        .input('firstName', validatedData.firstName)
-        .input('lastName', validatedData.lastName)
-        .input('intakeDate', validatedData.intakeDate)
-        .input('housingLocation', validatedData.housingLocation)
-        .input('dateOfBirth', validatedData.dateOfBirth)
-        .input('sex', validatedData.sex)
-        .input('email', validatedData.email)
-        .input('driversLicenseNumber', validatedData.driversLicenseNumber)
+        .input('firstName', sql.VarChar(100), validatedData.firstName)
+        .input('lastName', sql.VarChar(100), validatedData.lastName)
+        .input('intakeDate', sql.Date, new Date(validatedData.intakeDate))
+        .input('housingLocation', sql.VarChar(100), validatedData.housingLocation)
+        .input('dateOfBirth', sql.Date, new Date(validatedData.dateOfBirth))
+        .input('sex', sql.VarChar(50), validatedData.sex)
+        .input('email', sql.VarChar(255), validatedData.email)
+        .input('driversLicenseNumber', sql.VarChar(50), validatedData.driversLicenseNumber)
         .query(`
           INSERT INTO dbo.participants 
           (first_name, last_name, intake_date, housing_location, date_of_birth, sex, email, drivers_license_number, created_at)
@@ -78,11 +66,13 @@ export async function POST(request: Request) {
         `);
 
       const participantId = participantResult.recordset[0].participant_id;
+      console.log('Participant inserted successfully, ID:', participantId);
 
       // 2. Insert sensitive info
+      console.log('Inserting sensitive info...');
       await transaction.request()
-        .input('participantId', participantId)
-        .input('ssn', validatedData.socialSecurityNumber)
+        .input('participantId', sql.Int, participantId)
+        .input('ssn', sql.VarChar(11), validatedData.socialSecurityNumber)
         .query(`
           INSERT INTO dbo.participant_sensitive_info 
           (participant_id, ssn_encrypted, created_at)
@@ -260,6 +250,7 @@ export async function POST(request: Request) {
       }
 
       await transaction.commit();
+      console.log('Transaction committed successfully');
 
       return NextResponse.json({
         success: true,
@@ -269,9 +260,10 @@ export async function POST(request: Request) {
           intake_date: validatedData.intakeDate,
           participant_id: participantId
         }
-      })
+      });
 
     } catch (error) {
+      console.error('Transaction error details:', error);
       await transaction.rollback();
       throw error;
     }
@@ -290,7 +282,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: false,
       message: 'Failed to process onboarding data',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      details: JSON.stringify(error, Object.getOwnPropertyNames(error))  // Better error serialization
     }, { status: 500 })
   } finally {
     if (connection) {
