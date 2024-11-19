@@ -454,11 +454,10 @@ export default function OnboardingForm() {
               drivers_license_number: standardizedFormData.driversLicenseNumber,
             })
           });
-
-          console.log('Participant Response:', await participantResponse.clone().json());
-      
+          
           if (!participantResponse.ok) {
-            console.error('Participant creation failed:', await participantResponse.text());
+            const errorText = await participantResponse.text();
+            console.error('Full error response:', errorText);
             throw new Error('Failed to create participant');
           }
       
