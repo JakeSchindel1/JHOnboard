@@ -22,6 +22,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useRouter } from 'next/navigation';
+import { DataApiTransformer } from '@/lib/transformers/dataApiTransformer';
 
 interface ApiResponse {
   success: boolean;
@@ -363,9 +364,9 @@ export default function OnboardingForm() {
     
     setIsSubmitting(true);
     setSubmitError(null);
-
+  
     try {
-      // Create the standardized form data with proper handling of null values
+      // Create the standardized form data with proper type conversions
       const standardizedFormData = {
         ...formData,
         // Handle vehicle fields
@@ -373,17 +374,21 @@ export default function OnboardingForm() {
         vehicleMake: formData.vehicleMake === 'null' ? '' : (formData.vehicleMake || ''),
         vehicleModel: formData.vehicleModel === 'null' ? '' : (formData.vehicleModel || ''),
         
-        // Handle insurance fields
+        // Convert boolean fields
+        insured: Boolean(formData.insured),
+        dualDiagnosis: Boolean(formData.dualDiagnosis),
+        mat: Boolean(formData.mat),
+        needPsychMedication: Boolean(formData.needPsychMedication),
+        hasProbationOrPretrial: Boolean(formData.hasProbationOrPretrial),
+        consentAgreed: Boolean(formData.consentAgreed),
+        treatmentAgreed: Boolean(formData.treatmentAgreed),
+        priceConsentAgreed: Boolean(formData.priceConsentAgreed),
+        
+        // Handle other fields
         insuranceType: !formData.insured ? '' : (formData.insuranceType || ''),
         policyNumber: !formData.insured ? '' : (formData.policyNumber || ''),
-        
-        // Handle MAT medication
         matMedication: !formData.mat ? '' : (formData.matMedication || ''),
-        
-        // Handle medications array
         medications: formData.medications || [],
-        
-        // Handle jurisdiction
         jurisdiction: !formData.hasProbationOrPretrial ? '' : (formData.jurisdiction || ''),
         
         // Handle authorized people
@@ -391,9 +396,9 @@ export default function OnboardingForm() {
           person.firstName || person.lastName || person.relationship || person.phone
         )
       };
-
+  
       console.log('Standardized Form Data:', JSON.stringify(standardizedFormData, null, 2));
-
+  
       // Modified validation logic
       const missingFields = requiredFields.reduce((acc: string[], field) => {
         // Skip vehicle-related fields if they're marked as "null"
@@ -401,7 +406,7 @@ export default function OnboardingForm() {
             standardizedFormData[field as keyof FormData] === '') {
           return acc;
         }
-
+  
         // Skip conditional fields based on parent values
         if (
           (field === 'insuranceType' || field === 'policyNumber') && !standardizedFormData.insured ||
@@ -418,12 +423,13 @@ export default function OnboardingForm() {
         }
         return acc;
       }, []);
-
+  
       if (missingFields.length > 0) {
         console.log('Missing Fields:', missingFields);
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
-
+  
+      // Validate authorized people
       if (!standardizedFormData.authorizedPeople || 
           standardizedFormData.authorizedPeople.some((person: AuthorizedPerson) => 
             !person.firstName || 
@@ -433,264 +439,31 @@ export default function OnboardingForm() {
           )) {
         throw new Error('All authorized people must have complete information');
       }
-
-      const submitData = async (standardizedFormData: FormData) => {
-        try {
-          console.log('Starting participant creation...');
-          // Create participant first
-          const participantResponse = await fetch('/data-api/Participants', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              first_name: standardizedFormData.firstName,
-              last_name: standardizedFormData.lastName,
-              intake_date: standardizedFormData.intakeDate,
-              housing_location: standardizedFormData.housingLocation,
-              date_of_birth: standardizedFormData.dateOfBirth,
-              sex: standardizedFormData.sex,
-              email: standardizedFormData.email,
-              drivers_license_number: standardizedFormData.driversLicenseNumber,
-            })
-          });
-          
-          if (!participantResponse.ok) {
-            const errorText = await participantResponse.text();
-            console.error('Full error response:', errorText);
-            throw new Error('Failed to create participant');
-          }
-      
-          const participant = await participantResponse.json();
-          const participantId = participant.id;
-
-          console.log('Created participant with ID:', participantId);
-      
-          // Create all related records in parallel
-          const promises = [
-            // Sensitive Info
-            fetch('/data-api/ParticipantSensitiveInfo', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                ssn_encrypted: standardizedFormData.socialSecurityNumber,
-                encryption_iv: null
-              })
-            }).then(async res => {
-              console.log('Sensitive Info Response:', await res.json());
-              return res;
-            }),
-      
-            // Vehicle
-            standardizedFormData.vehicleTagNumber && fetch('/data-api/Vehicles', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                tag_number: standardizedFormData.vehicleTagNumber,
-                make: standardizedFormData.vehicleMake,
-                model: standardizedFormData.vehicleModel
-              })
-            }).then(async res => {
-              console.log('Vehicle Response:', await res.json());
-              return res;
-            }),
-      
-            // Insurance
-            fetch('/data-api/Insurance', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                is_insured: standardizedFormData.insured,
-                insurance_type: standardizedFormData.insuranceType,
-                policy_number: standardizedFormData.policyNumber
-              })
-            }).then(async res => {
-              console.log('Insurance Response:', await res.json());
-              return res;
-            }),
-      
-            // Emergency Contact
-            fetch('/data-api/EmergencyContacts', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                first_name: standardizedFormData.emergencyContactFirstName,
-                last_name: standardizedFormData.emergencyContactLastName,
-                phone: standardizedFormData.emergencyContactPhone,
-                relationship: standardizedFormData.emergencyContactRelationship,
-                other_relationship: standardizedFormData.otherRelationship
-              })
-            }).then(async res => {
-              console.log('Emergency Contact Response:', await res.json());
-              return res;
-            }),
-      
-            // Medical Info
-            fetch('/data-api/MedicalInfo', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                dual_diagnosis: standardizedFormData.dualDiagnosis,
-                mat: standardizedFormData.mat,
-                mat_medication: standardizedFormData.matMedication,
-                mat_medication_other: standardizedFormData.matMedicationOther,
-                need_psych_medication: standardizedFormData.needPsychMedication
-              })
-            }).then(async res => {
-              console.log('Medical Info Response:', await res.json());
-              return res;
-            }),
-      
-            // Medications
-            ...standardizedFormData.medications.map(med => 
-              fetch('/data-api/Medications', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  participant_id: participantId,
-                  medication_name: med
-                })
-              }).then(async res => {
-                console.log('Medication Response:', await res.json());
-                return res;
-              })
-            ),
-      
-            // Legal Info
-            fetch('/data-api/LegalInfo', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                has_probation_or_pretrial: standardizedFormData.hasProbationOrPretrial,
-                jurisdiction: standardizedFormData.jurisdiction,
-                other_jurisdiction: standardizedFormData.otherJurisdiction
-              })
-            }).then(async res => {
-              console.log('Legal Info Response:', await res.json());
-              return res;
-            }),
-      
-            // Authorized People
-            ...standardizedFormData.authorizedPeople.map(person =>
-              fetch('/data-api/AuthorizedPeople', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  participant_id: participantId,
-                  first_name: person.firstName,
-                  last_name: person.lastName,
-                  relationship: person.relationship,
-                  phone: person.phone
-                })
-              }).then(async res => {
-                console.log('Authorized Person Response:', await res.json());
-                return res;
-              })
-            ),
-      
-            // All Consents
-            fetch('/data-api/Consents', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                consent_signature: standardizedFormData.consentSignature,
-                consent_agreed: standardizedFormData.consentAgreed,
-                consent_timestamp: standardizedFormData.consentTimestamp,
-                witness_signature: standardizedFormData.witnessSignature,
-                witness_timestamp: standardizedFormData.witnessTimestamp,
-                signature_id: standardizedFormData.signatureId
-              })
-            }).then(async res => {
-              console.log('Consents Response:', await res.json());
-              return res;
-            }),
-      
-            fetch('/data-api/MedicationConsents', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                medication_signature: standardizedFormData.medicationSignature,
-                medication_signature_date: standardizedFormData.medicationSignatureDate,
-                medication_witness_signature: standardizedFormData.medicationWitnessSignature,
-                medication_witness_timestamp: standardizedFormData.medicationWitnessTimestamp,
-                medication_signature_id: standardizedFormData.medicationSignatureId
-              })
-            }).then(async res => {
-              console.log('Medication Consents Response:', await res.json());
-              return res;
-            }),
-      
-            fetch('/data-api/TreatmentConsents', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                treatment_signature: standardizedFormData.treatmentSignature,
-                treatment_agreed: standardizedFormData.treatmentAgreed,
-                treatment_timestamp: standardizedFormData.treatmentTimestamp,
-                treatment_witness_signature: standardizedFormData.treatmentwitnessSignature,
-                treatment_witness_timestamp: standardizedFormData.treatmentwitnessTimestamp,
-                treatment_signature_id: standardizedFormData.treatmentsignatureId
-              })
-            }).then(async res => {
-              console.log('Treatment Consents Response:', await res.json());
-              return res;
-            }),
-      
-            fetch('/data-api/PriceConsents', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                participant_id: participantId,
-                price_consent_signature: standardizedFormData.priceConsentSignature,
-                price_consent_agreed: standardizedFormData.priceConsentAgreed,
-                price_consent_timestamp: standardizedFormData.priceConsentTimestamp,
-                price_witness_signature: standardizedFormData.priceWitnessSignature,
-                price_witness_timestamp: standardizedFormData.priceWitnessTimestamp,
-                price_signature_id: standardizedFormData.priceSignatureId
-              })
-            }).then(async res => {
-              console.log('Price Consents Response:', await res.json());
-              return res;
-            })
-          ];
-
-          await Promise.all(promises.filter(Boolean));
-          console.log('All submissions complete');
-      
-          return {
-            success: true,
-            message: 'Form submitted successfully',
-            data: { participantId }
-          };
-      
-        } catch (error: unknown) {
-          console.error('Submission error:', error);
-          console.error('Error details:', {
-            message: error instanceof Error ? error.message : 'Unknown error',
-            stack: error instanceof Error ? error.stack : 'No stack trace'
-          });
-          throw error;
-        }
-      };
-
-      const result = await submitData(standardizedFormData);
+  
+      // This single line replaces all your old submitData function and API calls
+      const result = await DataApiTransformer.createParticipantRecord(standardizedFormData);
       
       if (!result.success) {
         throw new Error(result.message || 'Form submission failed');
       }
-      
+  
+      // If successful, redirect to success page
       router.push('/success');
+  
     } catch (error) {
       console.error('Form submission error:', error);
+      
+      // Detailed error logging
+      if (error instanceof Error) {
+        if (error.message.includes('participant')) {
+          console.error('Participant creation failed:', error);
+        } else if (error.message.includes('records')) {
+          console.error('Related records creation failed:', error);
+        } else {
+          console.error('Validation or other error:', error);
+        }
+      }
+      
       setSubmitError(
         error instanceof Error 
           ? error.message 
