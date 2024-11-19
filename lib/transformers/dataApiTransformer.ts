@@ -1,17 +1,6 @@
 // lib/transformers/dataApiTransformer.ts
 
-interface ParticipantApiPayload {
-    first_name: string;
-    last_name: string;
-    intake_date: string;
-    housing_location: string;
-    date_of_birth: string;
-    sex: string;
-    email: string;
-    drivers_license_number: string | null;
-  }
-  
-  interface AuthorizedPerson {
+interface AuthorizedPerson {
     firstName: string;
     lastName: string;
     relationship: string;
@@ -74,6 +63,16 @@ interface ParticipantApiPayload {
     priceSignatureId?: string;
   }
   
+  interface ApiResponse {
+    success: boolean;
+    message: string;
+    data?: {
+      name: string;
+      intake_date: string;
+      participant_id?: string;
+    };
+  }
+  
   export class DataApiTransformer {
     private static formatDate(date: string): string {
       try {
@@ -84,10 +83,10 @@ interface ParticipantApiPayload {
       }
     }
   
-    private static validatePayload(payload: ParticipantApiPayload): void {
+    private static validatePayload(payload: any): void {
       const now = new Date();
-      const dob = new Date(payload.date_of_birth);
-      const intake = new Date(payload.intake_date);
+      const dob = new Date(payload.dateOfBirth);
+      const intake = new Date(payload.intakeDate);
   
       if (dob > now) {
         throw new Error('Date of birth cannot be in the future');
@@ -96,257 +95,156 @@ interface ParticipantApiPayload {
       if (intake > now) {
         throw new Error('Intake date cannot be in the future');
       }
+  
+      // Additional validations
+      if (!payload.firstName || !payload.lastName) {
+        throw new Error('First name and last name are required');
+      }
+  
+      if (!payload.email || !payload.email.includes('@')) {
+        throw new Error('Valid email is required');
+      }
+  
+      // Validate authorized people if any exist
+      if (payload.authorizedPeople?.length > 0) {
+        payload.authorizedPeople.forEach((person: AuthorizedPerson, index: number) => {
+          if (!person.firstName || !person.lastName || !person.relationship || !person.phone) {
+            throw new Error(`Incomplete information for authorized person at position ${index + 1}`);
+          }
+        });
+      }
     }
   
     static async createParticipantRecord(formData: FormData) {
       try {
-        const participantPayload: ParticipantApiPayload = {
-          first_name: formData.firstName.trim(),
-          last_name: formData.lastName.trim(),
-          intake_date: this.formatDate(formData.intakeDate),
-          housing_location: formData.housingLocation.toLowerCase(),
-          date_of_birth: this.formatDate(formData.dateOfBirth),
+        // Prepare the standardized payload
+        const submitPayload = {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          intakeDate: this.formatDate(formData.intakeDate),
+          housingLocation: formData.housingLocation.toLowerCase(),
+          dateOfBirth: this.formatDate(formData.dateOfBirth),
           sex: formData.sex.toLowerCase(),
           email: formData.email.toLowerCase().trim(),
-          drivers_license_number: formData.driversLicenseNumber ? formData.driversLicenseNumber.trim() : null
+          driversLicenseNumber: formData.driversLicenseNumber?.trim() || '',
+          socialSecurityNumber: formData.socialSecurityNumber,
+          vehicleTagNumber: formData.vehicleTagNumber || '',
+          vehicleMake: formData.vehicleMake || '',
+          vehicleModel: formData.vehicleModel || '',
+          insured: formData.insured,
+          insuranceType: formData.insuranceType || '',
+          policyNumber: formData.policyNumber || '',
+          
+          // Emergency Contact
+          emergencyContactFirstName: formData.emergencyContactFirstName,
+          emergencyContactLastName: formData.emergencyContactLastName,
+          emergencyContactPhone: formData.emergencyContactPhone,
+          emergencyContactRelationship: formData.emergencyContactRelationship,
+          otherRelationship: formData.otherRelationship || '',
+          
+          // Medical Information
+          dualDiagnosis: formData.dualDiagnosis,
+          mat: formData.mat,
+          matMedication: formData.matMedication || '',
+          matMedicationOther: formData.matMedicationOther || '',
+          needPsychMedication: formData.needPsychMedication,
+          medications: formData.medications || [],
+          
+          // Legal Information
+          hasProbationOrPretrial: formData.hasProbationOrPretrial,
+          jurisdiction: formData.jurisdiction || '',
+          otherJurisdiction: formData.otherJurisdiction || '',
+          
+          // Consents
+          consentSignature: formData.consentSignature,
+          consentAgreed: formData.consentAgreed,
+          consentTimestamp: formData.consentTimestamp,
+          witnessSignature: formData.witnessSignature,
+          witnessTimestamp: formData.witnessTimestamp,
+          signatureId: formData.signatureId,
+          
+          // Medication Consent
+          medicationSignature: formData.medicationSignature,
+          medicationSignatureDate: formData.medicationSignatureDate,
+          medicationWitnessSignature: formData.medicationWitnessSignature,
+          medicationWitnessTimestamp: formData.medicationWitnessTimestamp,
+          medicationSignatureId: formData.medicationSignatureId,
+  
+          // Treatment Consent
+          treatmentSignature: formData.treatmentSignature || '',
+          treatmentAgreed: formData.treatmentAgreed || false,
+          treatmentTimestamp: formData.treatmentTimestamp || '',
+          treatmentwitnessSignature: formData.treatmentwitnessSignature || '',
+          treatmentwitnessTimestamp: formData.treatmentwitnessTimestamp || '',
+          treatmentsignatureId: formData.treatmentsignatureId || '',
+  
+          // Price Consent
+          priceConsentSignature: formData.priceConsentSignature || '',
+          priceConsentAgreed: formData.priceConsentAgreed || false,
+          priceConsentTimestamp: formData.priceConsentTimestamp || '',
+          priceWitnessSignature: formData.priceWitnessSignature || '',
+          priceWitnessTimestamp: formData.priceWitnessTimestamp || '',
+          priceSignatureId: formData.priceSignatureId || '',
+          
+          // Additional Required Arrays
+          authorizedPeople: formData.authorizedPeople.map(person => ({
+            firstName: person.firstName,
+            lastName: person.lastName,
+            relationship: person.relationship,
+            phone: person.phone
+          })),
+  
+          // Timestamp
+          createdAt: new Date().toISOString()
         };
   
-        this.validatePayload(participantPayload);
+        // Validate the payload before submission
+        this.validatePayload(submitPayload);
   
-        console.log('Creating participant with payload:', participantPayload);
-        
-        const participantResponse = await fetch('/data-api/Participants', {
+        console.log('Submitting data to API:', submitPayload);
+  
+        const response = await fetch('/api/submit', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify(participantPayload)
+          body: JSON.stringify(submitPayload)
         });
   
-        let errorText;
-        try {
-          const responseText = await participantResponse.text();
-          console.log('Full API Response:', responseText);
-          errorText = responseText;
-        } catch (e) {
-          console.error('Error reading response:', e);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API Response Error:', errorText);
+          throw new Error(`API request failed: ${errorText}`);
         }
   
-        if (!participantResponse.ok) {
-          throw new Error(`Failed to create participant: ${errorText}`);
-        }
+        const result: ApiResponse = await response.json();
   
-        let participant;
-        try {
-          participant = JSON.parse(errorText!);
-        } catch (e) {
-          throw new Error('Failed to parse participant response');
-        }
-  
-        const participantId = participant.participant_id;
-        if (!participantId) {
-          throw new Error('No participant ID returned from API');
-        }
-  
-        const relatedPromises = [
-          fetch('/data-api/ParticipantSensitiveInfo', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              participant_id: participantId,
-              ssn_encrypted: formData.socialSecurityNumber,
-              encryption_iv: null
-            })
-          }),
-  
-          formData.vehicleTagNumber && fetch('/data-api/Vehicles', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              participant_id: participantId,
-              tag_number: formData.vehicleTagNumber,
-              make: formData.vehicleMake,
-              model: formData.vehicleModel
-            })
-          }),
-  
-          fetch('/data-api/Insurance', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              participant_id: participantId,
-              is_insured: formData.insured,
-              insurance_type: formData.insuranceType || '',
-              policy_number: formData.policyNumber || ''
-            })
-          }),
-  
-          fetch('/data-api/MedicalInfo', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              participant_id: participantId,
-              dual_diagnosis: formData.dualDiagnosis,
-              mat: formData.mat,
-              mat_medication: formData.matMedication || '',
-              mat_medication_other: formData.matMedicationOther || '',
-              need_psych_medication: formData.needPsychMedication
-            })
-          }),
-  
-          fetch('/data-api/EmergencyContacts', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              participant_id: participantId,
-              first_name: formData.emergencyContactFirstName,
-              last_name: formData.emergencyContactLastName,
-              phone: formData.emergencyContactPhone,
-              relationship: formData.emergencyContactRelationship,
-              other_relationship: formData.otherRelationship || ''
-            })
-          }),
-  
-          ...formData.medications.map((med: string) => 
-            fetch('/data-api/Medications', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify({
-                participant_id: participantId,
-                medication_name: med
-              })
-            })
-          ),
-  
-          fetch('/data-api/LegalInfo', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              participant_id: participantId,
-              has_probation_or_pretrial: formData.hasProbationOrPretrial,
-              jurisdiction: formData.jurisdiction || '',
-              other_jurisdiction: formData.otherJurisdiction || ''
-            })
-          }),
-  
-          ...formData.authorizedPeople.map((person: AuthorizedPerson) =>
-            fetch('/data-api/AuthorizedPeople', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify({
-                participant_id: participantId,
-                first_name: person.firstName,
-                last_name: person.lastName,
-                relationship: person.relationship,
-                phone: person.phone
-              })
-            })
-          ),
-  
-          fetch('/data-api/Consents', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              participant_id: participantId,
-              consent_signature: formData.consentSignature,
-              consent_agreed: formData.consentAgreed,
-              consent_timestamp: formData.consentTimestamp,
-              witness_signature: formData.witnessSignature,
-              witness_timestamp: formData.witnessTimestamp,
-              signature_id: formData.signatureId
-            })
-          }),
-  
-          fetch('/data-api/TreatmentConsents', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              participant_id: participantId,
-              treatment_signature: formData.treatmentSignature || '',
-              treatment_agreed: formData.treatmentAgreed || false,
-              treatment_timestamp: formData.treatmentTimestamp || '',
-              treatment_witness_signature: formData.treatmentwitnessSignature || '',
-              treatment_witness_timestamp: formData.treatmentwitnessTimestamp || '',
-              treatment_signature_id: formData.treatmentsignatureId || ''
-            })
-          }),
-  
-          fetch('/data-api/PriceConsents', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-              participant_id: participantId,
-              price_consent_signature: formData.priceConsentSignature || '',
-              price_consent_agreed: formData.priceConsentAgreed || false,
-              price_consent_timestamp: formData.priceConsentTimestamp || '',
-              price_witness_signature: formData.priceWitnessSignature || '',
-              price_witness_timestamp: formData.priceWitnessTimestamp || '',
-              price_signature_id: formData.priceSignatureId || ''
-            })
-          })
-        ].filter(Boolean);
-  
-        const results = await Promise.allSettled(relatedPromises);
-        
-        const failures = results.filter(
-          (result): result is PromiseRejectedResult => result.status === 'rejected'
-        );
-  
-        if (failures.length > 0) {
-          console.error('Some related records failed:', failures);
-          throw new Error('Failed to create all related records');
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to submit participant data');
         }
   
         return {
           success: true,
-          participantId,
-          message: 'Participant and related records created successfully'
+          participantId: result.data?.participant_id,
+          message: 'Participant data submitted successfully',
+          data: result.data
         };
   
       } catch (error) {
         console.error('Error in createParticipantRecord:', error);
         
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        // Enhanced error handling with specific messages
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        
         if (errorMessage.includes('date')) {
           throw new Error(`Date validation error: ${errorMessage}`);
-        } else if (errorMessage.includes('participant')) {
-          throw new Error(`Participant creation failed: ${errorMessage}`);
+        } else if (errorMessage.includes('API request failed')) {
+          throw new Error(`Submission failed: ${errorMessage}`);
+        } else if (errorMessage.includes('authorized person')) {
+          throw new Error(`Validation error: ${errorMessage}`);
         } else {
-          throw error;
+          throw new Error(`Error creating participant record: ${errorMessage}`);
         }
       }
     }
