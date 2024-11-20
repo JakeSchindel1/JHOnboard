@@ -11,13 +11,16 @@ interface SQLError extends Error {
 // Create a connection using Managed Identity
 const getConnection = async () => {
   try {
+    console.log('Starting connection attempt with string:', process.env.DB_CONNECTION_STRING ? 'Connection string exists' : 'No connection string found');
     const connectionString = process.env.DB_CONNECTION_STRING;
     if (!connectionString) {
-      throw new Error('Database connection string not found');
+      throw new Error('Database connection string not found in environment variables');
     }
-    return await sql.connect(connectionString);
+    const connection = await sql.connect(connectionString);
+    console.log('Database connection successful');
+    return connection;
   } catch (error) {
-    console.error('Connection error:', error);
+    console.error('Database connection error:', error);
     throw error;
   }
 };
