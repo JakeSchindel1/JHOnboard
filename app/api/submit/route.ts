@@ -6,31 +6,17 @@ import sql from 'mssql'
 // Create a connection using Managed Identity
 const getConnection = async () => {
   try {
-    const config = {
-      server: process.env.DB_SERVER || 'journey-house.database.windows.net',
-      database: process.env.DB_NAME,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      options: {
-        encrypt: true,
-        trustServerCertificate: false,
-        enableArithAbort: true,
-        connectionTimeout: 60000,
-        requestTimeout: 120000,
-        pool: {
-          min: 1,
-          max: 10,
-          idleTimeoutMillis: 300000  // 5 minutes
-        }
-      }
-    };
-
-    return await sql.connect(config);
+    const connectionString = process.env.DB_CONNECTION_STRING;
+    if (!connectionString) {
+      throw new Error('Database connection string not found');
+    }
+    return await sql.connect(connectionString);
   } catch (error) {
     console.error('Connection error:', error);
     throw error;
   }
 };
+
 
 export async function POST(request: Request) {
   let connection;
