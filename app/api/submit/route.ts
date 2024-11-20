@@ -3,6 +3,11 @@ import { OnboardingSchema } from './schema'
 import { ZodError } from 'zod'
 import sql from 'mssql' 
 
+interface SQLError extends Error {
+  sqlState?: string;
+  code?: string;
+  state?: string;
+}
 // Create a connection using Managed Identity
 const getConnection = async () => {
   try {
@@ -24,21 +29,23 @@ export async function POST(request: Request) {
     const body = await request.json()
     console.log('Received data:', {
       ...body,
-      socialSecurityNumber: '[REDACTED]'  // Log data but protect sensitive info
+      socialSecurityNumber: '[REDACTED]'
     });
     
     const validatedData = OnboardingSchema.parse(body)
     console.log('Data validation passed');
     
     connection = await getConnection();
+    console.log('Database connected successfully');
+    
     const transaction = connection.transaction();
-    console.log('Starting transaction...');
 
+ 
     try {
+      console.log('Starting transaction...');
       await transaction.begin();
-
-      // 1. Insert main participant record with explicit parameter types
-      console.log('Attempting to insert participant record...');
+ 
+      console.log('Inserting participant record...');
       const participantResult = await transaction.request()
         .input('firstName', sql.VarChar(100), validatedData.firstName)
         .input('lastName', sql.VarChar(100), validatedData.lastName)
@@ -55,11 +62,10 @@ export async function POST(request: Request) {
           VALUES 
           (@firstName, @lastName, @intakeDate, @housingLocation, @dateOfBirth, @sex, @email, @driversLicenseNumber, GETDATE())
         `);
-
+ 
       const participantId = participantResult.recordset[0].participant_id;
       console.log('Participant inserted successfully, ID:', participantId);
-
-      // 2. Insert sensitive info
+ 
       console.log('Inserting sensitive info...');
       await transaction.request()
         .input('participantId', sql.Int, participantId)
@@ -70,8 +76,8 @@ export async function POST(request: Request) {
           VALUES 
           (@participantId, ENCRYPTBYPASSPHRASE(@@SERVERNAME, @ssn), GETDATE())
         `);
-
-      // 3. Insert vehicle info if provided
+ 
+      console.log('Processing vehicle info...');
       if (validatedData.vehicleTagNumber || validatedData.vehicleMake || validatedData.vehicleModel) {
         await transaction.request()
           .input('participantId', participantId)
@@ -85,8 +91,8 @@ export async function POST(request: Request) {
             (@participantId, @tagNumber, @make, @model)
           `);
       }
-
-      // 4. Insert insurance info
+ 
+      console.log('Inserting insurance info...');
       await transaction.request()
         .input('participantId', participantId)
         .input('isInsured', validatedData.insured)
@@ -98,8 +104,8 @@ export async function POST(request: Request) {
           VALUES 
           (@participantId, @isInsured, @insuranceType, @policyNumber)
         `);
-
-      // 5. Insert emergency contact
+ 
+      console.log('Inserting emergency contact...');
       await transaction.request()
         .input('participantId', participantId)
         .input('firstName', validatedData.emergencyContactFirstName)
@@ -113,8 +119,8 @@ export async function POST(request: Request) {
           VALUES 
           (@participantId, @firstName, @lastName, @phone, @relationship, @otherRelationship)
         `);
-
-      // 6. Insert medical info
+ 
+      console.log('Inserting medical info...');
       await transaction.request()
         .input('participantId', participantId)
         .input('dualDiagnosis', validatedData.dualDiagnosis)
@@ -128,8 +134,8 @@ export async function POST(request: Request) {
           VALUES 
           (@participantId, @dualDiagnosis, @mat, @matMedication, @matMedicationOther, @needPsychMedication)
         `);
-
-      // 7. Insert medications
+ 
+      console.log('Processing medications...');
       if (validatedData.medications && validatedData.medications.length > 0) {
         for (const medication of validatedData.medications) {
           await transaction.request()
@@ -143,8 +149,8 @@ export async function POST(request: Request) {
             `);
         }
       }
-
-      // 8. Insert legal info
+ 
+      console.log('Inserting legal info...');
       await transaction.request()
         .input('participantId', participantId)
         .input('hasProbation', validatedData.hasProbationOrPretrial)
@@ -156,8 +162,8 @@ export async function POST(request: Request) {
           VALUES 
           (@participantId, @hasProbation, @jurisdiction, @otherJurisdiction)
         `);
-
-      // 9. Insert authorized people
+ 
+      console.log('Processing authorized people...');
       for (const person of validatedData.authorizedPeople) {
         await transaction.request()
           .input('participantId', participantId)
@@ -172,8 +178,8 @@ export async function POST(request: Request) {
             (@participantId, @firstName, @lastName, @relationship, @phone)
           `);
       }
-
-      // 10. Insert consent info
+ 
+      console.log('Inserting consent info...');
       await transaction.request()
         .input('participantId', participantId)
         .input('signature', validatedData.consentSignature)
@@ -188,8 +194,8 @@ export async function POST(request: Request) {
           VALUES 
           (@participantId, @signature, @agreed, @timestamp, @witnessSignature, @witnessTimestamp, @signatureId)
         `);
-
-      // 11. Insert medication consent
+ 
+      console.log('Inserting medication consent...');
       await transaction.request()
         .input('participantId', participantId)
         .input('signature', validatedData.medicationSignature)
@@ -203,9 +209,9 @@ export async function POST(request: Request) {
           VALUES 
           (@participantId, @signature, @signatureDate, @witnessSignature, @witnessTimestamp, @signatureId)
         `);
-
-      // 12. Insert treatment consent if provided
+ 
       if (validatedData.treatmentSignature) {
+        console.log('Inserting treatment consent...');
         await transaction.request()
           .input('participantId', participantId)
           .input('signature', validatedData.treatmentSignature)
@@ -221,9 +227,9 @@ export async function POST(request: Request) {
             (@participantId, @signature, @agreed, @timestamp, @witnessSignature, @witnessTimestamp, @signatureId)
           `);
       }
-
-      // 13. Insert price consent if provided
+ 
       if (validatedData.priceConsentSignature) {
+        console.log('Inserting price consent...');
         await transaction.request()
           .input('participantId', participantId)
           .input('signature', validatedData.priceConsentSignature)
@@ -239,10 +245,10 @@ export async function POST(request: Request) {
             (@participantId, @signature, @agreed, @timestamp, @witnessSignature, @witnessTimestamp, @signatureId)
           `);
       }
-
+ 
       await transaction.commit();
       console.log('Transaction committed successfully');
-
+ 
       return NextResponse.json({
         success: true,
         message: 'Onboarding data saved successfully',
@@ -252,15 +258,19 @@ export async function POST(request: Request) {
           participant_id: participantId
         }
       });
-
+ 
     } catch (error) {
-      console.error('Transaction error details:', error);
+      console.error('Transaction error details:', {
+        error: (error as SQLError).message,
+        stack: (error as Error).stack,
+        code: (error as SQLError).code
+      });
       await transaction.rollback();
       throw error;
     }
-
+ 
   } catch (error) {
-    console.error('Error details:', error);
+    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
     
     if (error instanceof ZodError) {
       return NextResponse.json({
@@ -269,16 +279,16 @@ export async function POST(request: Request) {
         errors: error.errors
       }, { status: 400 })
     }
-
+ 
     return NextResponse.json({
       success: false,
       message: 'Failed to process onboarding data',
       error: error instanceof Error ? error.message : 'Unknown error',
-      details: JSON.stringify(error, Object.getOwnPropertyNames(error))  // Better error serialization
+      details: JSON.stringify(error, Object.getOwnPropertyNames(error))
     }, { status: 500 })
   } finally {
     if (connection) {
       await connection.close();
     }
   }
-}
+ }
