@@ -16,7 +16,12 @@ const getConnection = async () => {
         trustServerCertificate: false,
         enableArithAbort: true,
         connectionTimeout: 60000,
-        requestTimeout: 120000
+        requestTimeout: 120000,
+        pool: {
+          min: 1,
+          max: 10,
+          idleTimeoutMillis: 300000  // 5 minutes
+        }
       }
     };
 
