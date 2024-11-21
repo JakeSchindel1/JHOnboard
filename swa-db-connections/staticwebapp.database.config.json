@@ -6,9 +6,7 @@
       "server": "%DB_SERVER%",
       "database": "%DB_NAME%",
       "authentication": {
-        "type": "sql",
-        "username": "%DB_USER%",
-        "password": "%DB_PASSWORD%"
+        "type": "azure-active-directory-default"
       },
       "options": {
         "encrypt": true
