@@ -29,6 +29,13 @@ const getConnection = async () => {
 
 export async function POST(request: Request) {
   let connection;
+  connection = await getConnection();
+  try {
+    const testConnection = await connection.query('SELECT TOP 1 * FROM dbo.participants');
+    console.log('Test query result:', testConnection);
+  } catch (err) {
+    console.error('Connection test error:', err);
+  }
   try {
     const body = await request.json()
     console.log('Received data:', {
