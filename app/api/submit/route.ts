@@ -262,36 +262,32 @@ export async function POST(request: Request) {
         }
       });
  
-    } catch (error) {
-      console.error('Transaction error details:', {
-        error: (error as SQLError).message,
-        stack: (error as Error).stack,
-        code: (error as SQLError).code
+    } catch (error: any) {
+      console.error('Transaction error:', {
+        message: error?.message,
+        stack: error?.stack
       });
       await transaction.rollback();
       throw error;
     }
- 
-  } catch (error) {
-    console.error('Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+  } catch (error: any) {
+    console.error('API error:', {
+      message: error?.message,
+      stack: error?.stack
+    });
     
     if (error instanceof ZodError) {
       return NextResponse.json({
         success: false,
         message: 'Validation error',
         errors: error.errors
-      }, { status: 400 })
+      }, { status: 400 });
     }
- 
+
     return NextResponse.json({
       success: false,
       message: 'Failed to process onboarding data',
-      error: error instanceof Error ? error.message : 'Unknown error',
-      details: JSON.stringify(error, Object.getOwnPropertyNames(error))
-    }, { status: 500 })
-  } finally {
-    if (connection) {
-      await connection.close();
-    }
+      error: error?.message || 'Unknown error'
+    }, { status: 500 });
   }
  }
