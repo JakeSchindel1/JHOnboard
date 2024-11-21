@@ -13,6 +13,7 @@ const getConnection = async () => {
   try {
     console.log('Starting connection attempt with string:', process.env.DB_CONNECTION_STRING ? 'Connection string exists' : 'No connection string found');
     const connectionString = process.env.DB_CONNECTION_STRING;
+    console.log('Connection string:', connectionString?.replace(/password=[^;]+/, 'password=REDACTED'));
     if (!connectionString) {
       throw new Error('Database connection string not found in environment variables');
     }
@@ -266,6 +267,12 @@ export async function POST(request: Request) {
       console.error('Transaction error:', {
         message: error?.message,
         stack: error?.stack
+      });
+      console.error('Transaction error details:', {
+        message: error?.message,
+        code: error?.code,
+        state: error?.state,
+        originalError: error?.originalError
       });
       await transaction.rollback();
       throw error;
