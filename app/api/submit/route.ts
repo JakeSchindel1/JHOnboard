@@ -278,23 +278,20 @@ export async function POST(request: Request) {
       throw error;
     }
   } catch (error: any) {
-    console.error('API error:', {
+    console.error('Root error:', error);
+    console.error('SQL Error details:', {
+      code: error?.number,
+      state: error?.state,
       message: error?.message,
-      stack: error?.stack
+      procedure: error?.procedure,
+      lineNumber: error?.lineNumber,
+      sqlMessage: error?.originalError?.info?.message
     });
     
-    if (error instanceof ZodError) {
-      return NextResponse.json({
-        success: false,
-        message: 'Validation error',
-        errors: error.errors
-      }, { status: 400 });
-    }
-
     return NextResponse.json({
       success: false,
       message: 'Failed to process onboarding data',
       error: error?.message || 'Unknown error'
     }, { status: 500 });
   }
- }
+}
