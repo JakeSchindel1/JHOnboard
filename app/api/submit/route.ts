@@ -1,180 +1,191 @@
 import { NextResponse } from 'next/server'
 import { OnboardingSchema } from './schema'
-import { ZodError } from 'zod'
-import sql from 'mssql' 
+import sql from 'mssql'
 
-interface SQLError extends Error {
-  sqlState?: string;
-  code?: string;
-  state?: string;
-}
-// Create a connection using Managed Identity
-const getConnection = async () => {
-  try {
-    console.log('Starting connection attempt with string:', process.env.DB_CONNECTION_STRING ? 'Connection string exists' : 'No connection string found');
-    const connectionString = process.env.DB_CONNECTION_STRING;
-    console.log('Connection string:', connectionString?.replace(/password=[^;]+/, 'password=REDACTED'));
-    if (!connectionString) {
-      throw new Error('Database connection string not found in environment variables');
-    }
-    const connection = await sql.connect(connectionString);
-    console.log('Database connection successful');
-    return connection;
-  } catch (error) {
-    console.error('Database connection error:', error);
-    throw error;
+async function getConnection() {
+  console.log('🔄 Attempting database connection...')
+  const connectionString = process.env.DB_CONNECTION_STRING
+  
+  if (!connectionString) {
+    throw new Error('Database connection string not found')
   }
-};
 
+  try {
+    const conn = await sql.connect(connectionString)
+    console.log('✅ Database connection successful')
+    return conn
+  } catch (error: any) {
+    console.error('❌ Database connection failed:', error)
+    console.error('Connection details:', {
+      error: error.message,
+      code: error.code,
+      state: error.state
+    })
+    throw error
+  }
+}
 
 export async function POST(request: Request) {
-  let connection;
-  connection = await getConnection();
+  console.log('📥 Received POST request')
+  let connection
+  let transaction
+
   try {
-    const testConnection = await connection.query('SELECT TOP 1 * FROM dbo.participants');
-    console.log('Test query result:', testConnection);
-  } catch (err) {
-    console.error('Connection test error:', err);
-  }
-  try {
+    console.log('🔍 Parsing request body...')
     const body = await request.json()
-    console.log('Received data:', {
+    console.log('📋 Request body received:', {
       ...body,
       socialSecurityNumber: '[REDACTED]'
-    });
-    
-    const validatedData = OnboardingSchema.parse(body)
-    console.log('Data validation passed');
-    
-    connection = await getConnection();
-    console.log('Database connected successfully');
-    
-    const transaction = connection.transaction();
+    })
 
- 
-    try {
-      console.log('Starting transaction...');
-      await transaction.begin();
- 
-      console.log('Inserting participant record...');
-      const participantResult = await transaction.request()
-        .input('firstName', sql.VarChar(100), validatedData.firstName)
-        .input('lastName', sql.VarChar(100), validatedData.lastName)
-        .input('intakeDate', sql.Date, new Date(validatedData.intakeDate))
-        .input('housingLocation', sql.VarChar(100), validatedData.housingLocation)
-        .input('dateOfBirth', sql.Date, new Date(validatedData.dateOfBirth))
-        .input('sex', sql.VarChar(50), validatedData.sex)
-        .input('email', sql.VarChar(255), validatedData.email)
-        .input('driversLicenseNumber', sql.VarChar(50), validatedData.driversLicenseNumber)
-        .query(`
-          INSERT INTO dbo.participants 
-          (first_name, last_name, intake_date, housing_location, date_of_birth, sex, email, drivers_license_number, created_at)
-          OUTPUT INSERTED.participant_id
-          VALUES 
-          (@firstName, @lastName, @intakeDate, @housingLocation, @dateOfBirth, @sex, @email, @driversLicenseNumber, GETDATE())
-        `);
- 
-      const participantId = participantResult.recordset[0].participant_id;
-      console.log('Participant inserted successfully, ID:', participantId);
- 
-      console.log('Inserting sensitive info...');
+    console.log('🔎 Validating data schema...')
+    const validatedData = OnboardingSchema.parse(body)
+    console.log('✅ Data validation passed')
+    
+    console.log('🔌 Establishing database connection...')
+    connection = await getConnection()
+    
+    console.log('🔄 Starting transaction...')
+    transaction = connection.transaction()
+    await transaction.begin()
+    console.log('✅ Transaction started')
+
+    // Core participant data
+    console.log('📝 Inserting core participant data...')
+    const participantResult = await transaction.request()
+      .input('firstName', sql.VarChar(100), validatedData.firstName)
+      .input('lastName', sql.VarChar(100), validatedData.lastName)
+      .input('intakeDate', sql.Date, new Date(validatedData.intakeDate))
+      .input('housingLocation', sql.VarChar(100), validatedData.housingLocation)
+      .input('dateOfBirth', sql.Date, new Date(validatedData.dateOfBirth))
+      .input('sex', sql.VarChar(50), validatedData.sex)
+      .input('email', sql.VarChar(255), validatedData.email)
+      .input('driversLicenseNumber', sql.VarChar(50), validatedData.driversLicenseNumber)
+      .query(`
+        INSERT INTO dbo.participants 
+        (first_name, last_name, intake_date, housing_location, date_of_birth, sex, email, drivers_license_number, created_at)
+        OUTPUT INSERTED.participant_id
+        VALUES 
+        (@firstName, @lastName, @intakeDate, @housingLocation, @dateOfBirth, @sex, @email, @driversLicenseNumber, GETDATE())
+      `)
+
+    const participantId = participantResult.recordset[0].participant_id
+    console.log('✅ Core participant data inserted. ID:', participantId)
+
+    // Sensitive Info
+    console.log('🔒 Inserting sensitive information...')
+    await transaction.request()
+      .input('participantId', sql.Int, participantId)
+      .input('ssn', sql.VarChar(11), validatedData.socialSecurityNumber)
+      .query(`
+        INSERT INTO dbo.participant_sensitive_info 
+        (participant_id, ssn_encrypted, created_at)
+        VALUES 
+        (@participantId, ENCRYPTBYPASSPHRASE(@@SERVERNAME, @ssn), GETDATE())
+      `)
+    console.log('✅ Sensitive information inserted')
+
+    // Vehicle Info
+    if (validatedData.vehicleTagNumber || validatedData.vehicleMake || validatedData.vehicleModel) {
+      console.log('🚗 Inserting vehicle information...')
       await transaction.request()
-        .input('participantId', sql.Int, participantId)
-        .input('ssn', sql.VarChar(11), validatedData.socialSecurityNumber)
+        .input('participantId', participantId)
+        .input('tagNumber', validatedData.vehicleTagNumber)
+        .input('make', validatedData.vehicleMake)
+        .input('model', validatedData.vehicleModel)
         .query(`
-          INSERT INTO dbo.participant_sensitive_info 
-          (participant_id, ssn_encrypted, created_at)
+          INSERT INTO dbo.vehicles 
+          (participant_id, tag_number, make, model)
           VALUES 
-          (@participantId, ENCRYPTBYPASSPHRASE(@@SERVERNAME, @ssn), GETDATE())
-        `);
- 
-      console.log('Processing vehicle info...');
-      if (validatedData.vehicleTagNumber || validatedData.vehicleMake || validatedData.vehicleModel) {
+          (@participantId, @tagNumber, @make, @model)
+        `)
+      console.log('✅ Vehicle information inserted')
+    }
+
+    // Insurance Info
+    console.log('🏥 Inserting insurance information...')
+    await transaction.request()
+      .input('participantId', participantId)
+      .input('isInsured', validatedData.insured)
+      .input('insuranceType', validatedData.insuranceType)
+      .input('policyNumber', validatedData.policyNumber)
+      .query(`
+        INSERT INTO dbo.insurance 
+        (participant_id, is_insured, insurance_type, policy_number)
+        VALUES 
+        (@participantId, @isInsured, @insuranceType, @policyNumber)
+      `)
+    console.log('✅ Insurance information inserted')
+
+    // Emergency Contact
+    console.log('⚡ Inserting emergency contact...')
+    await transaction.request()
+      .input('participantId', participantId)
+      .input('firstName', validatedData.emergencyContactFirstName)
+      .input('lastName', validatedData.emergencyContactLastName)
+      .input('phone', validatedData.emergencyContactPhone)
+      .input('relationship', validatedData.emergencyContactRelationship)
+      .input('otherRelationship', validatedData.otherRelationship)
+      .query(`
+        INSERT INTO dbo.emergency_contacts 
+        (participant_id, first_name, last_name, phone, relationship, other_relationship)
+        VALUES 
+        (@participantId, @firstName, @lastName, @phone, @relationship, @otherRelationship)
+      `)
+    console.log('✅ Emergency contact inserted')
+
+    // Medical Info
+    console.log('💊 Inserting medical information...')
+    await transaction.request()
+      .input('participantId', participantId)
+      .input('dualDiagnosis', validatedData.dualDiagnosis)
+      .input('mat', validatedData.mat)
+      .input('matMedication', validatedData.matMedication)
+      .input('matMedicationOther', validatedData.matMedicationOther)
+      .input('needPsychMedication', validatedData.needPsychMedication)
+      .query(`
+        INSERT INTO dbo.medical_info 
+        (participant_id, dual_diagnosis, mat, mat_medication, mat_medication_other, need_psych_medication)
+        VALUES 
+        (@participantId, @dualDiagnosis, @mat, @matMedication, @matMedicationOther, @needPsychMedication)
+      `)
+    console.log('✅ Medical information inserted')
+
+    // Medications
+    if (validatedData.medications?.length > 0) {
+      console.log('💉 Inserting medications...')
+      for (const medication of validatedData.medications) {
         await transaction.request()
           .input('participantId', participantId)
-          .input('tagNumber', validatedData.vehicleTagNumber)
-          .input('make', validatedData.vehicleMake)
-          .input('model', validatedData.vehicleModel)
+          .input('medicationName', medication)
           .query(`
-            INSERT INTO dbo.vehicles 
-            (participant_id, tag_number, make, model)
+            INSERT INTO dbo.medications 
+            (participant_id, medication_name)
             VALUES 
-            (@participantId, @tagNumber, @make, @model)
-          `);
+            (@participantId, @medicationName)
+          `)
       }
- 
-      console.log('Inserting insurance info...');
-      await transaction.request()
-        .input('participantId', participantId)
-        .input('isInsured', validatedData.insured)
-        .input('insuranceType', validatedData.insuranceType)
-        .input('policyNumber', validatedData.policyNumber)
-        .query(`
-          INSERT INTO dbo.insurance 
-          (participant_id, is_insured, insurance_type, policy_number)
-          VALUES 
-          (@participantId, @isInsured, @insuranceType, @policyNumber)
-        `);
- 
-      console.log('Inserting emergency contact...');
-      await transaction.request()
-        .input('participantId', participantId)
-        .input('firstName', validatedData.emergencyContactFirstName)
-        .input('lastName', validatedData.emergencyContactLastName)
-        .input('phone', validatedData.emergencyContactPhone)
-        .input('relationship', validatedData.emergencyContactRelationship)
-        .input('otherRelationship', validatedData.otherRelationship)
-        .query(`
-          INSERT INTO dbo.emergency_contacts 
-          (participant_id, first_name, last_name, phone, relationship, other_relationship)
-          VALUES 
-          (@participantId, @firstName, @lastName, @phone, @relationship, @otherRelationship)
-        `);
- 
-      console.log('Inserting medical info...');
-      await transaction.request()
-        .input('participantId', participantId)
-        .input('dualDiagnosis', validatedData.dualDiagnosis)
-        .input('mat', validatedData.mat)
-        .input('matMedication', validatedData.matMedication)
-        .input('matMedicationOther', validatedData.matMedicationOther)
-        .input('needPsychMedication', validatedData.needPsychMedication)
-        .query(`
-          INSERT INTO dbo.medical_info 
-          (participant_id, dual_diagnosis, mat, mat_medication, mat_medication_other, need_psych_medication)
-          VALUES 
-          (@participantId, @dualDiagnosis, @mat, @matMedication, @matMedicationOther, @needPsychMedication)
-        `);
- 
-      console.log('Processing medications...');
-      if (validatedData.medications && validatedData.medications.length > 0) {
-        for (const medication of validatedData.medications) {
-          await transaction.request()
-            .input('participantId', participantId)
-            .input('medicationName', medication)
-            .query(`
-              INSERT INTO dbo.medications 
-              (participant_id, medication_name)
-              VALUES 
-              (@participantId, @medicationName)
-            `);
-        }
-      }
- 
-      console.log('Inserting legal info...');
-      await transaction.request()
-        .input('participantId', participantId)
-        .input('hasProbation', validatedData.hasProbationOrPretrial)
-        .input('jurisdiction', validatedData.jurisdiction)
-        .input('otherJurisdiction', validatedData.otherJurisdiction)
-        .query(`
-          INSERT INTO dbo.legal_info 
-          (participant_id, has_probation_or_pretrial, jurisdiction, other_jurisdiction)
-          VALUES 
-          (@participantId, @hasProbation, @jurisdiction, @otherJurisdiction)
-        `);
- 
-      console.log('Processing authorized people...');
+      console.log('✅ Medications inserted')
+    }
+
+    // Legal Info
+    console.log('⚖️ Inserting legal information...')
+    await transaction.request()
+      .input('participantId', participantId)
+      .input('hasProbation', validatedData.hasProbationOrPretrial)
+      .input('jurisdiction', validatedData.jurisdiction)
+      .input('otherJurisdiction', validatedData.otherJurisdiction)
+      .query(`
+        INSERT INTO dbo.legal_info 
+        (participant_id, has_probation_or_pretrial, jurisdiction, other_jurisdiction)
+        VALUES 
+        (@participantId, @hasProbation, @jurisdiction, @otherJurisdiction)
+      `)
+    console.log('✅ Legal information inserted')
+
+    // Authorized People
+    if (validatedData.authorizedPeople?.length > 0) {
+      console.log('👥 Inserting authorized people...')
       for (const person of validatedData.authorizedPeople) {
         await transaction.request()
           .input('participantId', participantId)
@@ -187,118 +198,72 @@ export async function POST(request: Request) {
             (participant_id, first_name, last_name, relationship, phone)
             VALUES 
             (@participantId, @firstName, @lastName, @relationship, @phone)
-          `);
+          `)
       }
- 
-      console.log('Inserting consent info...');
-      await transaction.request()
-        .input('participantId', participantId)
-        .input('signature', validatedData.consentSignature)
-        .input('agreed', validatedData.consentAgreed)
-        .input('timestamp', validatedData.consentTimestamp)
-        .input('witnessSignature', validatedData.witnessSignature)
-        .input('witnessTimestamp', validatedData.witnessTimestamp)
-        .input('signatureId', validatedData.signatureId)
-        .query(`
-          INSERT INTO dbo.consents 
-          (participant_id, consent_signature, consent_agreed, consent_timestamp, witness_signature, witness_timestamp, signature_id)
-          VALUES 
-          (@participantId, @signature, @agreed, @timestamp, @witnessSignature, @witnessTimestamp, @signatureId)
-        `);
- 
-      console.log('Inserting medication consent...');
-      await transaction.request()
-        .input('participantId', participantId)
-        .input('signature', validatedData.medicationSignature)
-        .input('signatureDate', validatedData.medicationSignatureDate)
-        .input('witnessSignature', validatedData.medicationWitnessSignature)
-        .input('witnessTimestamp', validatedData.medicationWitnessTimestamp)
-        .input('signatureId', validatedData.medicationSignatureId)
-        .query(`
-          INSERT INTO dbo.medication_consents 
-          (participant_id, medication_signature, medication_signature_date, medication_witness_signature, medication_witness_timestamp, medication_signature_id)
-          VALUES 
-          (@participantId, @signature, @signatureDate, @witnessSignature, @witnessTimestamp, @signatureId)
-        `);
- 
-      if (validatedData.treatmentSignature) {
-        console.log('Inserting treatment consent...');
-        await transaction.request()
-          .input('participantId', participantId)
-          .input('signature', validatedData.treatmentSignature)
-          .input('agreed', validatedData.treatmentAgreed)
-          .input('timestamp', validatedData.treatmentTimestamp)
-          .input('witnessSignature', validatedData.treatmentwitnessSignature)
-          .input('witnessTimestamp', validatedData.treatmentwitnessTimestamp)
-          .input('signatureId', validatedData.treatmentsignatureId)
-          .query(`
-            INSERT INTO dbo.treatment_consents 
-            (participant_id, treatment_signature, treatment_agreed, treatment_timestamp, treatment_witness_signature, treatment_witness_timestamp, treatment_signature_id)
-            VALUES 
-            (@participantId, @signature, @agreed, @timestamp, @witnessSignature, @witnessTimestamp, @signatureId)
-          `);
-      }
- 
-      if (validatedData.priceConsentSignature) {
-        console.log('Inserting price consent...');
-        await transaction.request()
-          .input('participantId', participantId)
-          .input('signature', validatedData.priceConsentSignature)
-          .input('agreed', validatedData.priceConsentAgreed)
-          .input('timestamp', validatedData.priceConsentTimestamp)
-          .input('witnessSignature', validatedData.priceWitnessSignature)
-          .input('witnessTimestamp', validatedData.priceWitnessTimestamp)
-          .input('signatureId', validatedData.priceSignatureId)
-          .query(`
-            INSERT INTO dbo.price_consents 
-            (participant_id, price_consent_signature, price_consent_agreed, price_consent_timestamp, price_witness_signature, price_witness_timestamp, price_signature_id)
-            VALUES 
-            (@participantId, @signature, @agreed, @timestamp, @witnessSignature, @witnessTimestamp, @signatureId)
-          `);
-      }
- 
-      await transaction.commit();
-      console.log('Transaction committed successfully');
- 
-      return NextResponse.json({
-        success: true,
-        message: 'Onboarding data saved successfully',
-        data: {
-          name: `${validatedData.firstName} ${validatedData.lastName}`,
-          intake_date: validatedData.intakeDate,
-          participant_id: participantId
-        }
-      });
- 
-    } catch (error: any) {
-      console.error('Transaction error:', {
-        message: error?.message,
-        stack: error?.stack
-      });
-      console.error('Transaction error details:', {
-        message: error?.message,
-        code: error?.code,
-        state: error?.state,
-        originalError: error?.originalError
-      });
-      await transaction.rollback();
-      throw error;
+      console.log('✅ Authorized people inserted')
     }
+
+    // Consents
+    console.log('📝 Inserting consent information...')
+    await transaction.request()
+      .input('participantId', participantId)
+      .input('signature', validatedData.consentSignature)
+      .input('agreed', validatedData.consentAgreed)
+      .input('timestamp', validatedData.consentTimestamp)
+      .input('witnessSignature', validatedData.witnessSignature)
+      .input('witnessTimestamp', validatedData.witnessTimestamp)
+      .input('signatureId', validatedData.signatureId)
+      .query(`
+        INSERT INTO dbo.consents 
+        (participant_id, consent_signature, consent_agreed, consent_timestamp, witness_signature, witness_timestamp, signature_id)
+        VALUES 
+        (@participantId, @signature, @agreed, @timestamp, @witnessSignature, @witnessTimestamp, @signatureId)
+      `)
+    console.log('✅ Consent information inserted')
+
+    console.log('💾 Committing transaction...')
+    await transaction.commit()
+    console.log('✅ Transaction committed successfully')
+
+    return NextResponse.json({
+      success: true,
+      message: 'Onboarding data saved successfully',
+      data: {
+        participant_id: participantId,
+        name: `${validatedData.firstName} ${validatedData.lastName}`,
+        intake_date: validatedData.intakeDate
+      }
+    })
+
   } catch (error: any) {
-    console.error('Root error:', error);
-    console.error('SQL Error details:', {
+    console.error('❌ Error occurred:', {
+      message: error?.message,
+      name: error?.name,
       code: error?.number,
       state: error?.state,
-      message: error?.message,
-      procedure: error?.procedure,
-      lineNumber: error?.lineNumber,
-      sqlMessage: error?.originalError?.info?.message
-    });
-    
+      stack: error?.stack
+    })
+
+    if (error.name === 'ZodError') {
+      console.error('📋 Validation errors:', error.errors)
+    }
+
+    if (transaction) {
+      console.log('↩️ Rolling back transaction...')
+      await transaction.rollback()
+      console.log('✅ Transaction rolled back')
+    }
+
     return NextResponse.json({
       success: false,
       message: 'Failed to process onboarding data',
       error: error?.message || 'Unknown error'
-    }, { status: 500 });
+    }, { status: 500 })
+  } finally {
+    if (connection) {
+      console.log('🔌 Closing database connection...')
+      await connection.close()
+      console.log('✅ Database connection closed')
+    }
   }
 }
