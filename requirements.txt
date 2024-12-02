@@ -1,4 +1,3 @@
 azure-functions
 pydantic
 pyodbc
-msodbcsql18
