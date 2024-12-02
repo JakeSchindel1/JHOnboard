@@ -35,12 +35,12 @@ jobs:
 
      - name: Install ODBC Driver
        run: |
-         sudo apt-get remove --purge unixodbc-dev unixodbc odbcinst libodbcinst2 libodbc2
+         sudo apt-get remove --purge --force-yes unixodbc-dev unixodbc odbcinst libodbcinst2 libodbc2 unixodbc-common
          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
          curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
          sudo apt-get update
-         ACCEPT_EULA=Y sudo apt-get install -y msodbcsql18
-         sudo apt-get install -y unixodbc-dev
+         ACCEPT_EULA=Y sudo apt-get install -y --force-yes msodbcsql18
+         sudo apt-get install -y --force-yes unixodbc-dev
 
      - name: Set up Node.js
        uses: actions/setup-node@v3
