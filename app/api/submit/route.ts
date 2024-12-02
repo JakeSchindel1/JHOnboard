@@ -11,20 +11,21 @@ async function getConnection() {
   }
 
   try {
-    const conn = await sql.connect(connectionString)
-    console.log('✅ Database connection successful')
-    return conn
+    const pool = new sql.ConnectionPool(connectionString)
+    const conn = await pool.connect()
+    const identity = await pool.request().query('SELECT SYSTEM_USER as identity')
+    console.log('🔑 Connected as:', identity.recordset[0].identity)
+    return pool
   } catch (error: any) {
-    console.error('❌ Database connection failed:', error)
-    console.error('Connection details:', {
-      error: error.message,
+    console.error('❌ Database connection failed:', {
+      message: error.message,
       code: error.code,
-      state: error.state
+      state: error.state,
+      identity: error.clientRequestId
     })
     throw error
   }
 }
-
 export async function POST(request: Request) {
   console.log('📥 Received POST request')
   let connection
