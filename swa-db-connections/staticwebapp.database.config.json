@@ -3,10 +3,10 @@
     "name": "participant-info",
     "type": "mssql",
     "connectionDetails": {
-      "server": "%DB_SERVER%",
-      "database": "%DB_NAME%",
+      "server": "journey-house.database.windows.net",
+      "database": "participant-info",
       "authentication": {
-        "type": "azure-active-directory-default"
+        "type": "system-assigned-managed-identity"
       },
       "options": {
         "encrypt": true
