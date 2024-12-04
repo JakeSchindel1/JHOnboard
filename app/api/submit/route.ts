@@ -19,7 +19,7 @@ async function getConnection() {
   try {
     const pool = new sql.ConnectionPool(config);
     const conn = await pool.connect();
-    const identity = await pool.request().query('SELECT SYSTEM_USER as identity');
+    const identity = await pool.request().query('SELECT SYSTEM_USER as [identity]');
     console.log('🔑 Connected as:', identity.recordset[0].identity);
     return pool;
   } catch (error: any) {
