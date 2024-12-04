@@ -1,17 +1,30 @@
 import { NextResponse } from 'next/server'
 import { OnboardingSchema } from './schema'
 import sql from 'mssql'
+import { ConnectionPool, config as SQLConfig } from 'mssql';
+import loadConfig from 'next/dist/server/config';
 
 async function getConnection() {
   console.log('🔄 Attempting database connection...')
-  const connectionString = process.env.DB_CONNECTION_STRING
   
-  if (!connectionString) {
-    throw new Error('Database connection string not found')
+  const config: SQLConfig = {
+    server: 'journey-house.database.windows.net', 
+    database: 'participant-info',
+    authentication: {
+      type: 'azure-active-directory-default',
+      options: {
+        clientId: undefined
+      }
+    },
+    options: {
+      encrypt: true,
+      trustServerCertificate: false
+    }
   }
 
+ 
   try {
-    const pool = new sql.ConnectionPool(connectionString)
+    const pool = new sql.ConnectionPool(config)
     const conn = await pool.connect()
     const identity = await pool.request().query('SELECT SYSTEM_USER as identity')
     console.log('🔑 Connected as:', identity.recordset[0].identity)
@@ -25,7 +38,8 @@ async function getConnection() {
     })
     throw error
   }
-}
+ }
+
 export async function POST(request: Request) {
   console.log('📥 Received POST request')
   let connection
