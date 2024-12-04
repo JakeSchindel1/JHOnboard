@@ -6,7 +6,9 @@
       "server": "journey-house.database.windows.net",
       "database": "participant-info",
       "authentication": {
-        "type": "system-assigned-managed-identity"
+        "type": "sqlAuth",
+        "username": "${{SQL_USERNAME}}",
+        "password": "${{SQL_PASSWORD}}"
       },
       "options": {
         "encrypt": true

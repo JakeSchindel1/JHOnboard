@@ -2,43 +2,37 @@ import { NextResponse } from 'next/server'
 import { OnboardingSchema } from './schema'
 import sql from 'mssql'
 import { ConnectionPool, config as SQLConfig } from 'mssql';
-import loadConfig from 'next/dist/server/config';
 
 async function getConnection() {
- console.log('🔄 Attempting database connection...')
- 
- const config: SQLConfig = {
-   server: 'journey-house.database.windows.net', 
-   database: 'participant-info',
-   authentication: {
-     type: 'azure-active-directory-default',
-     options: {
-       clientId: undefined
-     }
-   },
-   options: {
-     encrypt: true,
-     trustServerCertificate: false
-   }
- }
+  console.log('🔄 Attempting database connection...');
+  
+  const config: SQLConfig = {
+    server: process.env.DB_SERVER!,
+    database: process.env.DB_NAME!,
+    user: process.env.DB_USER!,
+    password: process.env.DB_PASSWORD!,
+    options: {
+      encrypt: true // Ensures the connection is secure
+    }
+  };
 
- try {
-   const pool = new sql.ConnectionPool(config)
-   const conn = await pool.connect()
-   const identity = await pool.request().query('SELECT SYSTEM_USER as identity')
-   console.log('🔑 Connected as:', identity.recordset[0].identity)
-   return pool
- } catch (error: any) {
-   console.error('❌ Database connection failed:', {
-     message: error?.message,
-     name: error?.name,
-     code: error?.number,
-     state: error?.state,
-     sql: error?.sql,
-     fullError: error
-   })
-   throw error
- }
+  try {
+    const pool = new sql.ConnectionPool(config);
+    const conn = await pool.connect();
+    const identity = await pool.request().query('SELECT SYSTEM_USER as identity');
+    console.log('🔑 Connected as:', identity.recordset[0].identity);
+    return pool;
+  } catch (error: any) {
+    console.error('❌ Database connection failed:', {
+      message: error?.message,
+      name: error?.name,
+      code: error?.number,
+      state: error?.state,
+      sql: error?.sql,
+      fullError: error
+    });
+    throw error;
+  }
 }
 
 export async function POST(request: Request) {
