@@ -8,6 +8,24 @@ const AuthorizedPersonSchema = z.object({
   phone: z.string().min(10, 'Valid phone number is required')
 })
 
+const HealthStatusSchema = z.object({
+  pregnant: z.boolean().optional().default(false),
+  developmentallyDisabled: z.boolean().optional().default(false),
+  coOccurringDisorder: z.boolean().optional().default(false),
+  docSupervision: z.boolean().optional().default(false),
+  felon: z.boolean().optional().default(false),
+  physicallyHandicapped: z.boolean().optional().default(false),
+  postPartum: z.boolean().optional().default(false),
+  primaryFemaleCaregiver: z.boolean().optional().default(false),
+  recentlyIncarcerated: z.boolean().optional().default(false),
+  sexOffender: z.boolean().optional().default(false),
+  lgbtq: z.boolean().optional().default(false),
+  veteran: z.boolean().optional().default(false),
+  insulinDependent: z.boolean().optional().default(false),
+  historyOfSeizures: z.boolean().optional().default(false),
+  others: z.array(z.string()).optional().default([])
+});
+
 export const OnboardingSchema = z.object({
   // Personal Information
   firstName: z.string().min(1, 'First name is required'),
@@ -45,6 +63,9 @@ export const OnboardingSchema = z.object({
   needPsychMedication: z.boolean(),
   medications: z.array(z.string()).default([]),
   
+  // Health Status
+  healthStatus: HealthStatusSchema.default({}),
+
   // Legal Information
   hasProbationOrPretrial: z.boolean(),
   jurisdiction: z.string().optional().default(''),
