@@ -118,6 +118,26 @@ interface FormData {
   priceWitnessSignature: string;
   priceWitnessTimestamp: string;
   priceSignatureId: string;
+
+  // Health Status
+  healthStatus: {
+    pregnant?: boolean;
+    developmentallyDisabled?: boolean;
+    coOccurringDisorder?: boolean;
+    docSupervision?: boolean;
+    felon?: boolean;
+    physicallyHandicapped?: boolean;
+    postPartum?: boolean;
+    primaryFemaleCaregiver?: boolean;
+    recentlyIncarcerated?: boolean;
+    sexOffender?: boolean;
+    lgbtq?: boolean;
+    veteran?: boolean;
+    insulinDependent?: boolean;
+    historyOfSeizures?: boolean;
+    others?: string[];
+    [key: string]: boolean | string[] | undefined;
+  };
 }
 
 const requiredFields = [
@@ -286,7 +306,10 @@ export default function OnboardingForm() {
     priceConsentTimestamp: '',
     priceWitnessSignature: '',
     priceWitnessTimestamp: '',
-    priceSignatureId: ''
+    priceSignatureId: '',
+
+    // Health Status
+    healthStatus: {}
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -339,6 +362,16 @@ export default function OnboardingForm() {
       vehicleMake: hasNoVehicle ? 'null' : '',
       vehicleModel: hasNoVehicle ? 'null' : '',
       vehicleTagNumber: hasNoVehicle ? 'null' : '',
+    }));
+  };
+
+  const handleHealthStatusChange = (updates: Partial<FormData['healthStatus']>) => {
+    setFormData(prev => ({
+      ...prev,
+      healthStatus: {
+        ...prev.healthStatus,
+        ...updates
+      }
     }));
   };
 
@@ -489,6 +522,7 @@ export default function OnboardingForm() {
         return <OnboardingPage2 
           {...basicProps} 
           handleVehicleToggle={handleVehicleToggle}
+          handleHealthStatusChange={handleHealthStatusChange}
         />;
       case 3:
         return <OnboardingPage3 {...basicProps} />;
