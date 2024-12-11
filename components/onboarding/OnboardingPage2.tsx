@@ -6,6 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Eye, EyeOff, UserCircle, Car } from "lucide-react";
 
+interface HealthStatus {
+  pregnant?: boolean;
+  developmentallyDisabled?: boolean;
+  coOccurringDisorder?: boolean;
+  docSupervision?: boolean;
+  felon?: boolean;
+  physicallyHandicapped?: boolean;
+  postPartum?: boolean;
+  primaryFemaleCaregiver?: boolean;
+  recentlyIncarcerated?: boolean;
+  sexOffender?: boolean;
+  lgbtq?: boolean;
+  veteran?: boolean;
+  insulinDependent?: boolean;
+  historyOfSeizures?: boolean;
+  others?: string[];
+  [key: string]: boolean | string[] | undefined;
+}
+
 interface FormData {
   socialSecurityNumber?: string;
   sex?: string;
@@ -14,6 +33,11 @@ interface FormData {
   vehicleTagNumber?: string;
   vehicleMake?: string;
   vehicleModel?: string;
+  race?: string;
+  ethnicity?: string;
+  householdIncome?: string;
+  employmentStatus?: string;
+  healthStatus: HealthStatus;
 }
 
 interface OnboardingPage2Props {
@@ -21,13 +45,15 @@ interface OnboardingPage2Props {
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSelectChange: (name: string, value: string) => void;
   handleVehicleToggle: (hasNoVehicle: boolean) => void;
+  handleHealthStatusChange?: (updates: Partial<FormData['healthStatus']>) => void;
 }
 
 export default function OnboardingPage2({
-  formData = {},
+  formData = { healthStatus: {} },
   handleInputChange,
   handleSelectChange,
-  handleVehicleToggle
+  handleVehicleToggle,
+  handleHealthStatusChange = () => {}
 }: OnboardingPage2Props) {
   const [showSSN, setShowSSN] = useState(false);
   
@@ -254,6 +280,201 @@ export default function OnboardingPage2({
                 disabled={noCar}
               />
               <p className="text-sm text-gray-500">Your vehicle&apos;s license plate number</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Demographics & Health Status Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <UserCircle className="h-5 w-5 text-purple-500" />
+            Demographics & Health Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Race */}
+            <div className="space-y-2">
+              <Label htmlFor="race" className="text-base font-medium">Race</Label>
+              <Select 
+                value={formData.race} 
+                onValueChange={(value) => handleSelectChange('race', value)}
+              >
+                <SelectTrigger id="race" className="bg-white">
+                  <SelectValue placeholder="Select race" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="american-indian">American Indian or Alaska Native</SelectItem>
+                  <SelectItem value="asian">Asian</SelectItem>
+                  <SelectItem value="black">Black or African American</SelectItem>
+                  <SelectItem value="pacific-islander">Native Hawaiian or Pacific Islander</SelectItem>
+                  <SelectItem value="white">White</SelectItem>
+                  <SelectItem value="multiple">Multiple Races</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Ethnicity */}
+            <div className="space-y-2">
+              <Label htmlFor="ethnicity" className="text-base font-medium">Ethnicity</Label>
+              <Select 
+                value={formData.ethnicity} 
+                onValueChange={(value) => handleSelectChange('ethnicity', value)}
+              >
+                <SelectTrigger id="ethnicity" className="bg-white">
+                  <SelectValue placeholder="Select ethnicity" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hispanic">Hispanic or Latino</SelectItem>
+                  <SelectItem value="non-hispanic">Not Hispanic or Latino</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Household Income */}
+            <div className="space-y-2">
+              <Label htmlFor="householdIncome" className="text-base font-medium">Household Income</Label>
+              <Select 
+                value={formData.householdIncome} 
+                onValueChange={(value) => handleSelectChange('householdIncome', value)}
+              >
+                <SelectTrigger id="householdIncome" className="bg-white">
+                  <SelectValue placeholder="Select income range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="under-15k">Under $15,000</SelectItem>
+                  <SelectItem value="15k-30k">$15,000 - $29,999</SelectItem>
+                  <SelectItem value="30k-45k">$30,000 - $44,999</SelectItem>
+                  <SelectItem value="45k-60k">$45,000 - $59,999</SelectItem>
+                  <SelectItem value="60k-75k">$60,000 - $74,999</SelectItem>
+                  <SelectItem value="75k-plus">$75,000 or more</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Employment Status */}
+            <div className="space-y-2">
+              <Label htmlFor="employmentStatus" className="text-base font-medium">Employment Status</Label>
+              <Select 
+                value={formData.employmentStatus} 
+                onValueChange={(value) => handleSelectChange('employmentStatus', value)}
+              >
+                <SelectTrigger id="employmentStatus" className="bg-white">
+                  <SelectValue placeholder="Select employment status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full-time">Full-time</SelectItem>
+                  <SelectItem value="part-time">Part-time</SelectItem>
+                  <SelectItem value="unemployed">Unemployed</SelectItem>
+                  <SelectItem value="retired">Retired</SelectItem>
+                  <SelectItem value="student">Student</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Health Status Checkboxes */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Health & Status Information</h3>
+            <p className="text-sm text-gray-500">Select all that apply to you</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[
+                { id: 'pregnant', label: 'Pregnant' },
+                { id: 'developmentallyDisabled', label: 'Developmentally Disabled' },
+                { id: 'coOccurringDisorder', label: 'Co-Occurring Disorder' },
+                { id: 'docSupervision', label: 'DOC Supervision' },
+                { id: 'felon', label: 'Felon' },
+                { id: 'physicallyHandicapped', label: 'Physically Handicapped' },
+                { id: 'postPartum', label: 'Post-Partum' },
+                { id: 'primaryFemaleCaregiver', label: 'Primary Female Caregiver' },
+                { id: 'recentlyIncarcerated', label: 'Recently Incarcerated' },
+                { id: 'sexOffender', label: 'Sex Offender' },
+                { id: 'lgbtq', label: 'LGBTQ' },
+                { id: 'veteran', label: 'Veteran' },
+                { id: 'insulinDependent', label: 'Insulin Dependent' },
+                { id: 'historyOfSeizures', label: 'History of Seizures' }
+              ].map(({ id, label }) => (
+                <div key={id} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={id}
+                    checked={formData.healthStatus?.[id as keyof HealthStatus] as boolean || false}
+                    onChange={(e) => {
+                      handleHealthStatusChange({
+                        [id]: e.target.checked
+                      });
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <Label htmlFor={id} className="text-sm">
+                    {label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+
+            {/* Other Items */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-medium">Other</Label>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    const newOthers = [...(formData.healthStatus.others || []), ''];
+                    handleHealthStatusChange({ others: newOthers });
+                  }}
+                  className="text-sm"
+                >
+                  Add Another
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                {(formData.healthStatus.others || []).map((item, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      value={item}
+                      onChange={(e) => {
+                        const newOthers = [...(formData.healthStatus.others || [])];
+                        newOthers[index] = e.target.value;
+                        handleHealthStatusChange({ others: newOthers });
+                      }}
+                      placeholder="Specify other condition or status"
+                      className="bg-white flex-1"
+                    />
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        const newOthers = [...(formData.healthStatus.others || [])];
+                        newOthers.splice(index, 1);
+                        handleHealthStatusChange({ others: newOthers });
+                      }}
+                      className="shrink-0"
+                    >
+                      ×
+                    </Button>
+                  </div>
+                ))}
+                {!(formData.healthStatus.others || []).length && (
+                  <Input
+                    placeholder="Specify other condition or status"
+                    className="bg-white"
+                    onChange={(e) => {
+                      handleHealthStatusChange({ 
+                        others: [e.target.value]
+                      });
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </CardContent>

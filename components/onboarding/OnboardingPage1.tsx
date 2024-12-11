@@ -156,7 +156,6 @@ export default function OnboardingPage1({
                   <SelectItem value="cottage">Cottage</SelectItem>
                   <SelectItem value="packard">Packard</SelectItem>
                   <SelectItem value="pathfinder">Pathfinder</SelectItem>
-                  <SelectItem value="allens_crossing">Allen&apos;s Crossing</SelectItem>
                   <SelectItem value="sherwin">Sherwin</SelectItem>
                   <SelectItem value="colebrook">Colebrook</SelectItem>
                   <SelectItem value="broad_meadows">Broad Meadows</SelectItem>
