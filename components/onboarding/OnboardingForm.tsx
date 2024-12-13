@@ -38,6 +38,25 @@ interface AuthorizedPerson {
   phone: string;
 }
 
+interface HealthStatus {
+  pregnant: boolean;
+  developmentallyDisabled: boolean;
+  coOccurringDisorder: boolean;
+  docSupervision: boolean;
+  felon: boolean;
+  physicallyHandicapped: boolean;
+  postPartum: boolean;
+  primaryFemaleCaregiver: boolean;
+  recentlyIncarcerated: boolean;
+  sexOffender: boolean;
+  lgbtq: boolean;
+  veteran: boolean;
+  insulinDependent: boolean;
+  historyOfSeizures: boolean;
+  others: string[];
+  [key: string]: boolean | string[] | undefined;
+}
+
 interface FormData {
   // Personal Information
   firstName: string;
@@ -120,24 +139,7 @@ interface FormData {
   priceSignatureId: string;
 
   // Health Status
-  healthStatus: {
-    pregnant?: boolean;
-    developmentallyDisabled?: boolean;
-    coOccurringDisorder?: boolean;
-    docSupervision?: boolean;
-    felon?: boolean;
-    physicallyHandicapped?: boolean;
-    postPartum?: boolean;
-    primaryFemaleCaregiver?: boolean;
-    recentlyIncarcerated?: boolean;
-    sexOffender?: boolean;
-    lgbtq?: boolean;
-    veteran?: boolean;
-    insulinDependent?: boolean;
-    historyOfSeizures?: boolean;
-    others?: string[];
-    [key: string]: boolean | string[] | undefined;
-  };
+  healthStatus: HealthStatus;
 }
 
 const requiredFields = [
@@ -182,9 +184,7 @@ const requiredFields = [
   'priceSignatureId'
 ];
 
-// Add standardization function
 const standardizeValue = (value: any): any => {
-  // Handle arrays (for medications and authorizedPeople)
   if (Array.isArray(value)) {
     if (value.length === 0) return null;
     const standardized = value.filter(item => 
@@ -193,7 +193,6 @@ const standardizeValue = (value: any): any => {
     return standardized.length ? standardized : null;
   }
 
-  // Handle objects (for authorizedPeople entries)
   if (value && typeof value === 'object') {
     const standardized = Object.fromEntries(
       Object.entries(value).map(([k, v]) => [k, v === '' ? null : v])
@@ -201,7 +200,6 @@ const standardizeValue = (value: any): any => {
     return Object.values(standardized).every(v => v === null) ? null : standardized;
   }
 
-  // Handle empty/special values
   if (
     value === undefined ||
     value === null ||
@@ -213,7 +211,6 @@ const standardizeValue = (value: any): any => {
     return null;
   }
 
-  // Handle boolean strings
   if (value === 'true') return true;
   if (value === 'false') return false;
 
@@ -309,13 +306,28 @@ export default function OnboardingForm() {
     priceSignatureId: '',
 
     // Health Status
-    healthStatus: {}
+    healthStatus: {
+      pregnant: false,
+      developmentallyDisabled: false,
+      coOccurringDisorder: false,
+      docSupervision: false,
+      felon: false,
+      physicallyHandicapped: false,
+      postPartum: false,
+      primaryFemaleCaregiver: false,
+      recentlyIncarcerated: false,
+      sexOffender: false,
+      lgbtq: false,
+      veteran: false,
+      insulinDependent: false,
+      historyOfSeizures: false,
+      others: []
+    }
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     
-    // Handle checkboxes
     if (type === 'checkbox') {
       setFormData(prev => ({
         ...prev,
@@ -334,19 +346,16 @@ export default function OnboardingForm() {
     setFormData(prev => {
       const newState = { ...prev, [name]: value };
       
-      // Handle dependent fields for probation/pretrial
       if (name === 'hasProbationOrPretrial' && !value) {
         newState.jurisdiction = null;
         newState.otherJurisdiction = '';
       }
       
-      // Handle dependent fields for insurance
       if (name === 'insured' && !value) {
         newState.insuranceType = null;
         newState.policyNumber = null;
       }
 
-      // Handle dependent fields for MAT
       if (name === 'mat' && !value) {
         newState.matMedication = null;
         newState.matMedicationOther = '';
@@ -365,7 +374,7 @@ export default function OnboardingForm() {
     }));
   };
 
-  const handleHealthStatusChange = (updates: Partial<FormData['healthStatus']>) => {
+  const handleHealthStatusChange = (updates: Partial<HealthStatus>) => {
     setFormData(prev => ({
       ...prev,
       healthStatus: {
@@ -399,15 +408,12 @@ export default function OnboardingForm() {
     setSubmitError(null);
   
     try {
-      // Create the standardized form data with proper type conversions
       const standardizedFormData = {
         ...formData,
-        // Handle vehicle fields
         vehicleTagNumber: formData.vehicleTagNumber === 'null' ? '' : (formData.vehicleTagNumber || ''),
         vehicleMake: formData.vehicleMake === 'null' ? '' : (formData.vehicleMake || ''),
         vehicleModel: formData.vehicleModel === 'null' ? '' : (formData.vehicleModel || ''),
         
-        // Convert boolean fields
         insured: Boolean(formData.insured),
         dualDiagnosis: Boolean(formData.dualDiagnosis),
         mat: Boolean(formData.mat),
@@ -417,14 +423,12 @@ export default function OnboardingForm() {
         treatmentAgreed: Boolean(formData.treatmentAgreed),
         priceConsentAgreed: Boolean(formData.priceConsentAgreed),
         
-        // Handle other fields
         insuranceType: !formData.insured ? '' : (formData.insuranceType || ''),
         policyNumber: !formData.insured ? '' : (formData.policyNumber || ''),
         matMedication: !formData.mat ? '' : (formData.matMedication || ''),
         medications: formData.medications || [],
         jurisdiction: !formData.hasProbationOrPretrial ? '' : (formData.jurisdiction || ''),
         
-        // Handle authorized people
         authorizedPeople: formData.authorizedPeople.filter(person => 
           person.firstName || person.lastName || person.relationship || person.phone
         )
@@ -432,15 +436,12 @@ export default function OnboardingForm() {
   
       console.log('Standardized Form Data:', JSON.stringify(standardizedFormData, null, 2));
   
-      // Modified validation logic
       const missingFields = requiredFields.reduce((acc: string[], field) => {
-        // Skip vehicle-related fields if they're marked as "null"
         if (['vehicleMake', 'vehicleModel', 'vehicleTagNumber'].includes(field) &&
             standardizedFormData[field as keyof FormData] === '') {
           return acc;
         }
   
-        // Skip conditional fields based on parent values
         if (
           (field === 'insuranceType' || field === 'policyNumber') && !standardizedFormData.insured ||
           field === 'jurisdiction' && !standardizedFormData.hasProbationOrPretrial ||
@@ -462,186 +463,182 @@ export default function OnboardingForm() {
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
   
-      // Validate authorized people
       if (!standardizedFormData.authorizedPeople || 
-          standardizedFormData.authorizedPeople.some((person: AuthorizedPerson) => 
-            !person.firstName || 
-            !person.lastName || 
-            !person.relationship || 
-            !person.phone
-          )) {
-        throw new Error('All authorized people must have complete information');
+        standardizedFormData.authorizedPeople.some((person: AuthorizedPerson) => 
+          !person.firstName || 
+          !person.lastName || 
+          !person.relationship || 
+          !person.phone
+        )) {
+      throw new Error('All authorized people must have complete information');
+    }
+
+    const result = await DataApiTransformer.createParticipantRecord(standardizedFormData);
+    
+    if (!result.success) {
+      throw new Error(result.message || 'Form submission failed');
+    }
+
+    router.push('/success');
+
+  } catch (error) {
+    console.error('Form submission error:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('participant')) {
+        console.error('Participant creation failed:', error);
+      } else if (error.message.includes('records')) {
+        console.error('Related records creation failed:', error);
+      } else {
+        console.error('Validation or other error:', error);
       }
-  
-      // This single line replaces all your old submitData function and API calls
-      const result = await DataApiTransformer.createParticipantRecord(standardizedFormData);
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Form submission failed');
-      }
-  
-      // If successful, redirect to success page
-      router.push('/success');
-  
-    } catch (error) {
-      console.error('Form submission error:', error);
-      
-      // Detailed error logging
-      if (error instanceof Error) {
-        if (error.message.includes('participant')) {
-          console.error('Participant creation failed:', error);
-        } else if (error.message.includes('records')) {
-          console.error('Related records creation failed:', error);
-        } else {
-          console.error('Validation or other error:', error);
-        }
-      }
-      
-      setSubmitError(
-        error instanceof Error 
-          ? error.message 
-          : 'An unexpected error occurred while submitting the form. Please try again.'
+    }
+    
+    setSubmitError(
+      error instanceof Error 
+        ? error.message 
+        : 'An unexpected error occurred while submitting the form. Please try again.'
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+const renderPageContent = () => {
+  const basicProps = {
+    formData,
+    handleInputChange,
+    handleSelectChange,
+    setCurrentPage,
+  };
+
+  switch (currentPage) {
+    case 1:
+      return <OnboardingPage1 {...basicProps} />;
+    case 2:
+      return <OnboardingPage2 
+        {...basicProps} 
+        handleVehicleToggle={handleVehicleToggle}
+        handleHealthStatusChange={handleHealthStatusChange}
+      />;
+    case 3:
+      return <OnboardingPage3 {...basicProps} />;
+    case 4:
+      return <OnboardingPage4 {...basicProps} />;
+    case 5:
+      return <OnboardingPage5 {...basicProps} />;
+    case 6:
+      return <OnboardingPage6 
+        formData={formData}
+        isOnMAT={formData.mat}
+        handleInputChange={handleInputChange}
+        handleSelectChange={handleSelectChange}
+      />;
+    case 7:
+      return <OnboardingPage7 
+        {...basicProps} 
+        handleAuthorizedPeopleChange={handleAuthorizedPeopleChange}
+      />;
+    case 8:
+      return <OnboardingPage8 {...basicProps} />;
+    case 9:
+      return <OnboardingPage9 {...basicProps} />;
+    default:
+      return null;
+  }
+};
+
+const isSubmitDisabled = () => {
+  if (currentPage === 5) {
+    return !formData.consentSignature || !formData.witnessSignature;
+  }
+  if (currentPage === 6) {
+    return !formData.medicationSignature;
+  }
+  if (currentPage === 7) {
+    return formData.authorizedPeople.length === 0 || 
+      formData.authorizedPeople.some(person => 
+        !person.firstName || !person.lastName || !person.relationship || !person.phone
       );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  }
+  if (currentPage === 9) {
+    return !formData.priceConsentSignature || !formData.priceWitnessSignature;
+  }
+  return false;
+};
 
-  const renderPageContent = () => {
-    const basicProps = {
-      formData,
-      handleInputChange,
-      handleSelectChange,
-      setCurrentPage,
-    };
+return (
+  <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+    <div className="flex justify-center mb-6">
+      <div className="cursor-pointer" onClick={() => setShowDialog(true)}>
+        <Image
+          src="/images/JourneyHouseLogo.png" 
+          alt="Company Logo"
+          width={200}
+          height={80}
+          priority
+          className="h-auto w-auto max-w-[200px] hover:scale-105 transition-transform duration-300"
+        />
+      </div>
+    </div>
 
-    switch (currentPage) {
-      case 1:
-        return <OnboardingPage1 {...basicProps} />;
-      case 2:
-        return <OnboardingPage2 
-          {...basicProps} 
-          handleVehicleToggle={handleVehicleToggle}
-          handleHealthStatusChange={handleHealthStatusChange}
-        />;
-      case 3:
-        return <OnboardingPage3 {...basicProps} />;
-      case 4:
-        return <OnboardingPage4 {...basicProps} />;
-      case 5:
-        return <OnboardingPage5 {...basicProps} />;
-      case 6:
-        return <OnboardingPage6 
-          formData={formData}
-          isOnMAT={formData.mat}
-          handleInputChange={handleInputChange}
-          handleSelectChange={handleSelectChange}
-        />;
-      case 7:
-        return <OnboardingPage7 
-          {...basicProps} 
-          handleAuthorizedPeopleChange={handleAuthorizedPeopleChange}
-        />;
-      case 8:
-        return <OnboardingPage8 {...basicProps} />;
-      case 9:
-        return <OnboardingPage9 {...basicProps} />;
-      default:
-        return null;
-    }
-  };
+    <h1 className="text-3xl font-bold mb-6 text-center">Onboarding Form</h1>
+    <OnboardingProgress currentPage={currentPage} totalPages={9} />
+    
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {renderPageContent()}
 
-  const isSubmitDisabled = () => {
-    if (currentPage === 5) {
-      return !formData.consentSignature || !formData.witnessSignature;
-    }
-    if (currentPage === 6) {
-      return !formData.medicationSignature;
-    }
-    if (currentPage === 7) {
-      return formData.authorizedPeople.length === 0 || 
-        formData.authorizedPeople.some(person => 
-          !person.firstName || !person.lastName || !person.relationship || !person.phone
-        );
-    }
-    if (currentPage === 9) {
-      return !formData.priceConsentSignature || !formData.priceWitnessSignature;
-    }
-    return false;
-  };
+      {isSubmitting && (
+        <div className="p-4 mb-4 text-blue-700 bg-blue-100 rounded-lg">
+          Submitting form, please wait...
+        </div>
+      )}
 
-  return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <div className="flex justify-center mb-6">
-        <div className="cursor-pointer" onClick={() => setShowDialog(true)}>
-          <Image
-            src="/images/JourneyHouseLogo.png" 
-            alt="Company Logo"
-            width={200}
-            height={80}
-            priority
-            className="h-auto w-auto max-w-[200px] hover:scale-105 transition-transform duration-300"
-          />
+      {submitError && (
+        <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-lg">
+          {submitError}
+        </div>
+      )}
+
+      <div className="flex justify-between mt-6">
+        {currentPage > 1 && (
+          <Button 
+            type="button" 
+            onClick={() => setCurrentPage(prev => prev - 1)}
+            variant="outline"
+          >
+            Back
+          </Button>
+        )}
+        <div className={currentPage === 1 ? 'ml-auto' : ''}>
+          <Button 
+            type="submit"
+            disabled={isSubmitDisabled() || isSubmitting}
+          >
+            {currentPage === 9 ? (isSubmitting ? "Submitting..." : "Submit") : "Next"}
+          </Button>
         </div>
       </div>
+    </form>
 
-      <h1 className="text-3xl font-bold mb-6 text-center">Onboarding Form</h1>
-      <OnboardingProgress currentPage={currentPage} totalPages={9} />
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {renderPageContent()}
-
-        {isSubmitting && (
-          <div className="p-4 mb-4 text-blue-700 bg-blue-100 rounded-lg">
-            Submitting form, please wait...
-          </div>
-        )}
-
-        {submitError && (
-          <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-lg">
-            {submitError}
-          </div>
-        )}
-
-        <div className="flex justify-between mt-6">
-          {currentPage > 1 && (
-            <Button 
-              type="button" 
-              onClick={() => setCurrentPage(prev => prev - 1)}
-              variant="outline"
-            >
-              Back
-            </Button>
-          )}
-          <div className={currentPage === 1 ? 'ml-auto' : ''}>
-            <Button 
-              type="submit"
-              disabled={isSubmitDisabled() || isSubmitting}
-            >
-              {currentPage === 9 ? (isSubmitting ? "Submitting..." : "Submit") : "Next"}
-            </Button>
-          </div>
-        </div>
-      </form>
-
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Return to Home Page?</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to return to the home page? Any unsaved progress will be lost.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex space-x-2 justify-end">
-            <Button variant="outline" onClick={() => setShowDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => router.push('/')}>
-              Yes, return home
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+    <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Return to Home Page?</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to return to the home page? Any unsaved progress will be lost.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex space-x-2 justify-end">
+          <Button variant="outline" onClick={() => setShowDialog(false)}>
+            Cancel
+          </Button>
+          <Button onClick={() => router.push('/')}>
+            Yes, return home
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
+);
 }

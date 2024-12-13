@@ -3,9 +3,27 @@ interface AuthorizedPerson {
   lastName: string;
   relationship: string;
   phone: string;
-}
-
-interface FormData {
+ }
+ 
+ interface HealthStatus {
+  pregnant: boolean;
+  developmentallyDisabled: boolean;
+  coOccurringDisorder: boolean;
+  docSupervision: boolean;
+  felon: boolean;
+  physicallyHandicapped: boolean;
+  postPartum: boolean;
+  primaryFemaleCaregiver: boolean;
+  recentlyIncarcerated: boolean;
+  sexOffender: boolean;
+  lgbtq: boolean;
+  veteran: boolean;
+  insulinDependent: boolean;
+  historyOfSeizures: boolean;
+  others: string[];
+ }
+ 
+ interface FormData {
   firstName: string;
   lastName: string;
   intakeDate: string;
@@ -59,9 +77,10 @@ interface FormData {
   priceWitnessSignature?: string;
   priceWitnessTimestamp?: string;
   priceSignatureId?: string;
-}
-
-interface ApiResponse {
+  healthStatus: HealthStatus;
+ }
+ 
+ interface ApiResponse {
   success: boolean;
   message: string;
   data?: {
@@ -69,20 +88,18 @@ interface ApiResponse {
     intake_date: string;
     participant_id?: string;
   };
-}
-
-export class DataApiTransformer {
+ }
+ 
+ export class DataApiTransformer {
   private static validatePayload(payload: any): void {
-    // Basic validation
     if (!payload.firstName || !payload.lastName) {
       throw new Error('First name and last name are required');
     }
-
+ 
     if (!payload.email || !payload.email.includes('@')) {
       throw new Error('Valid email is required');
     }
-
-    // Validate authorized people if any exist
+ 
     if (payload.authorizedPeople?.length > 0) {
       payload.authorizedPeople.forEach((person: AuthorizedPerson, index: number) => {
         if (!person.firstName || !person.lastName || !person.relationship || !person.phone) {
@@ -91,16 +108,15 @@ export class DataApiTransformer {
       });
     }
   }
-
+ 
   static async createParticipantRecord(formData: FormData) {
     try {
-      // Prepare the standardized payload
       const submitPayload = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
-        intakeDate: formData.intakeDate,  // Schema handles date formatting
+        intakeDate: formData.intakeDate,
         housingLocation: formData.housingLocation.toLowerCase(),
-        dateOfBirth: formData.dateOfBirth,  // Schema handles date formatting
+        dateOfBirth: formData.dateOfBirth,
         sex: formData.sex.toLowerCase(),
         email: formData.email.toLowerCase().trim(),
         driversLicenseNumber: formData.driversLicenseNumber?.trim() || '',
@@ -153,17 +169,33 @@ export class DataApiTransformer {
           lastName: person.lastName.trim(),
           relationship: person.relationship.trim(),
           phone: person.phone.trim()
-        }))
+        })),
+        healthStatus: {
+          pregnant: Boolean(formData.healthStatus.pregnant),
+          developmentallyDisabled: Boolean(formData.healthStatus.developmentallyDisabled),
+          coOccurringDisorder: Boolean(formData.healthStatus.coOccurringDisorder),
+          docSupervision: Boolean(formData.healthStatus.docSupervision),
+          felon: Boolean(formData.healthStatus.felon),
+          physicallyHandicapped: Boolean(formData.healthStatus.physicallyHandicapped),
+          postPartum: Boolean(formData.healthStatus.postPartum),
+          primaryFemaleCaregiver: Boolean(formData.healthStatus.primaryFemaleCaregiver),
+          recentlyIncarcerated: Boolean(formData.healthStatus.recentlyIncarcerated),
+          sexOffender: Boolean(formData.healthStatus.sexOffender),
+          lgbtq: Boolean(formData.healthStatus.lgbtq),
+          veteran: Boolean(formData.healthStatus.veteran),
+          insulinDependent: Boolean(formData.healthStatus.insulinDependent),
+          historyOfSeizures: Boolean(formData.healthStatus.historyOfSeizures),
+          others: Array.isArray(formData.healthStatus.others) ? formData.healthStatus.others : []
+        }
       };
-
-      // Validate the payload before submission
+ 
       this.validatePayload(submitPayload);
-
+ 
       console.log('Submitting data to API:', {
         ...submitPayload,
         socialSecurityNumber: '[REDACTED]'
       });
-
+ 
       const response = await fetch('/api/submit', {
         method: 'POST',
         headers: { 
@@ -172,30 +204,29 @@ export class DataApiTransformer {
         },
         body: JSON.stringify(submitPayload)
       });
-
+ 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API Response Error:', errorText);
         throw new Error(`API request failed: ${errorText}`);
       }
-
+ 
       const result: ApiResponse = await response.json();
-
+ 
       if (!result.success) {
         throw new Error(result.message || 'Failed to submit participant data');
       }
-
+ 
       return {
         success: true,
         participantId: result.data?.participant_id,
         message: 'Participant data submitted successfully',
         data: result.data
       };
-
+ 
     } catch (error) {
       console.error('Error in createParticipantRecord:', error);
       
-      // Enhanced error handling with specific messages
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       if (errorMessage.includes('date')) {
@@ -209,4 +240,4 @@ export class DataApiTransformer {
       }
     }
   }
-}
+ }

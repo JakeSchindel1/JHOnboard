@@ -7,21 +7,21 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Eye, EyeOff, UserCircle, Car } from "lucide-react";
 
 interface HealthStatus {
-  pregnant?: boolean;
-  developmentallyDisabled?: boolean;
-  coOccurringDisorder?: boolean;
-  docSupervision?: boolean;
-  felon?: boolean;
-  physicallyHandicapped?: boolean;
-  postPartum?: boolean;
-  primaryFemaleCaregiver?: boolean;
-  recentlyIncarcerated?: boolean;
-  sexOffender?: boolean;
-  lgbtq?: boolean;
-  veteran?: boolean;
-  insulinDependent?: boolean;
-  historyOfSeizures?: boolean;
-  others?: string[];
+  pregnant: boolean;
+  developmentallyDisabled: boolean;
+  coOccurringDisorder: boolean;
+  docSupervision: boolean;
+  felon: boolean;
+  physicallyHandicapped: boolean;
+  postPartum: boolean;
+  primaryFemaleCaregiver: boolean;
+  recentlyIncarcerated: boolean;
+  sexOffender: boolean;
+  lgbtq: boolean;
+  veteran: boolean;
+  insulinDependent: boolean;
+  historyOfSeizures: boolean;
+  others: string[];
   [key: string]: boolean | string[] | undefined;
 }
 
@@ -49,7 +49,25 @@ interface OnboardingPage2Props {
 }
 
 export default function OnboardingPage2({
-  formData = { healthStatus: {} },
+  formData = { 
+    healthStatus: {
+      pregnant: false,
+      developmentallyDisabled: false,
+      coOccurringDisorder: false,
+      docSupervision: false,
+      felon: false,
+      physicallyHandicapped: false,
+      postPartum: false,
+      primaryFemaleCaregiver: false,
+      recentlyIncarcerated: false,
+      sexOffender: false,
+      lgbtq: false,
+      veteran: false,
+      insulinDependent: false,
+      historyOfSeizures: false,
+      others: []
+    }
+  },
   handleInputChange,
   handleSelectChange,
   handleVehicleToggle,
