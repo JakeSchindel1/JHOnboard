@@ -23,7 +23,12 @@ const HealthStatusSchema = z.object({
   veteran: z.boolean().optional().default(false),
   insulinDependent: z.boolean().optional().default(false),
   historyOfSeizures: z.boolean().optional().default(false),
-  others: z.array(z.string()).optional().default([])
+  others: z.array(z.string()).optional().default([]),
+  race: z.string().optional().default(''),
+  ethnicity: z.string().optional().default(''),
+  householdIncome: z.string().optional().default(''),
+  employmentStatus: z.string().optional().default(''),
+  others2: z.array(z.string()).optional().default([])
 });
 
 export const OnboardingSchema = z.object({
@@ -65,11 +70,6 @@ export const OnboardingSchema = z.object({
   
   // Health Status
   healthStatus: HealthStatusSchema.default({}),
-  race: z.string().optional().default(''),
-  ethnicity: z.string().optional().default(''),
-  householdIncome: z.string().optional().default(''),
-  employmentStatus: z.string().optional().default(''),
-  others: z.array(z.string()).optional().default([]),
 
   // Legal Information
   hasProbationOrPretrial: z.boolean(),
