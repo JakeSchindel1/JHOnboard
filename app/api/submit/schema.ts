@@ -65,6 +65,11 @@ export const OnboardingSchema = z.object({
   
   // Health Status
   healthStatus: HealthStatusSchema.default({}),
+  race: z.string().optional().default(''),
+  ethnicity: z.string().optional().default(''),
+  householdIncome: z.string().optional().default(''),
+  employmentStatus: z.string().optional().default(''),
+  others: z.array(z.string()).optional().default([]),
 
   // Legal Information
   hasProbationOrPretrial: z.boolean(),

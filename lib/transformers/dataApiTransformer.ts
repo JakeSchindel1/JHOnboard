@@ -3,9 +3,9 @@ interface AuthorizedPerson {
   lastName: string;
   relationship: string;
   phone: string;
- }
- 
- interface HealthStatus {
+}
+
+interface HealthStatus {
   pregnant: boolean;
   developmentallyDisabled: boolean;
   coOccurringDisorder: boolean;
@@ -21,9 +21,14 @@ interface AuthorizedPerson {
   insulinDependent: boolean;
   historyOfSeizures: boolean;
   others: string[];
- }
- 
- interface FormData {
+  // New demographics fields
+  race?: string;
+  ethnicity?: string;
+  householdIncome?: string;
+  employmentStatus?: string;
+}
+
+interface FormData {
   firstName: string;
   lastName: string;
   intakeDate: string;
@@ -78,9 +83,9 @@ interface AuthorizedPerson {
   priceWitnessTimestamp?: string;
   priceSignatureId?: string;
   healthStatus: HealthStatus;
- }
- 
- interface ApiResponse {
+}
+
+interface ApiResponse {
   success: boolean;
   message: string;
   data?: {
@@ -88,18 +93,18 @@ interface AuthorizedPerson {
     intake_date: string;
     participant_id?: string;
   };
- }
- 
- export class DataApiTransformer {
+}
+
+export class DataApiTransformer {
   private static validatePayload(payload: any): void {
     if (!payload.firstName || !payload.lastName) {
       throw new Error('First name and last name are required');
     }
- 
+
     if (!payload.email || !payload.email.includes('@')) {
       throw new Error('Valid email is required');
     }
- 
+
     if (payload.authorizedPeople?.length > 0) {
       payload.authorizedPeople.forEach((person: AuthorizedPerson, index: number) => {
         if (!person.firstName || !person.lastName || !person.relationship || !person.phone) {
@@ -108,7 +113,7 @@ interface AuthorizedPerson {
       });
     }
   }
- 
+
   static async createParticipantRecord(formData: FormData) {
     try {
       const submitPayload = {
@@ -185,17 +190,22 @@ interface AuthorizedPerson {
           veteran: Boolean(formData.healthStatus.veteran),
           insulinDependent: Boolean(formData.healthStatus.insulinDependent),
           historyOfSeizures: Boolean(formData.healthStatus.historyOfSeizures),
-          others: Array.isArray(formData.healthStatus.others) ? formData.healthStatus.others : []
+          others: Array.isArray(formData.healthStatus.others) ? formData.healthStatus.others : [],
+          // New demographics fields
+          race: formData.healthStatus.race || '',
+          ethnicity: formData.healthStatus.ethnicity || '',
+          householdIncome: formData.healthStatus.householdIncome || '',
+          employmentStatus: formData.healthStatus.employmentStatus || ''
         }
       };
- 
+
       this.validatePayload(submitPayload);
- 
+
       console.log('Submitting data to API:', {
         ...submitPayload,
         socialSecurityNumber: '[REDACTED]'
       });
- 
+
       const response = await fetch('/api/submit', {
         method: 'POST',
         headers: { 
@@ -204,26 +214,26 @@ interface AuthorizedPerson {
         },
         body: JSON.stringify(submitPayload)
       });
- 
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API Response Error:', errorText);
         throw new Error(`API request failed: ${errorText}`);
       }
- 
+
       const result: ApiResponse = await response.json();
- 
+
       if (!result.success) {
         throw new Error(result.message || 'Failed to submit participant data');
       }
- 
+
       return {
         success: true,
         participantId: result.data?.participant_id,
         message: 'Participant data submitted successfully',
         data: result.data
       };
- 
+
     } catch (error) {
       console.error('Error in createParticipantRecord:', error);
       
@@ -240,4 +250,4 @@ interface AuthorizedPerson {
       }
     }
   }
- }
+}
