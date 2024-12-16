@@ -172,47 +172,55 @@ export async function POST(request: Request) {
       `);
     console.log('✅ Medical information inserted');
 
-    // Health Status with new demographic fields
-    console.log('🏥 Inserting health status information...');
-    const healthStatusResult = await transaction.request()
-      .input('participantId', sql.Int, participantId)
-      .input('pregnant', sql.Bit, validatedData.healthStatus.pregnant)
-      .input('developmentallyDisabled', sql.Bit, validatedData.healthStatus.developmentallyDisabled)
-      .input('coOccurringDisorder', sql.Bit, validatedData.healthStatus.coOccurringDisorder)
-      .input('docSupervision', sql.Bit, validatedData.healthStatus.docSupervision)
-      .input('felon', sql.Bit, validatedData.healthStatus.felon)
-      .input('physicallyHandicapped', sql.Bit, validatedData.healthStatus.physicallyHandicapped)
-      .input('postPartum', sql.Bit, validatedData.healthStatus.postPartum)
-      .input('primaryFemaleCaregiver', sql.Bit, validatedData.healthStatus.primaryFemaleCaregiver)
-      .input('recentlyIncarcerated', sql.Bit, validatedData.healthStatus.recentlyIncarcerated)
-      .input('sexOffender', sql.Bit, validatedData.healthStatus.sexOffender)
-      .input('lgbtq', sql.Bit, validatedData.healthStatus.lgbtq)
-      .input('veteran', sql.Bit, validatedData.healthStatus.veteran)
-      .input('insulinDependent', sql.Bit, validatedData.healthStatus.insulinDependent)
-      .input('historyOfSeizures', sql.Bit, validatedData.healthStatus.historyOfSeizures)
-      // New demographic inputs
-      .input('race', sql.VarChar(100), validatedData.healthStatus.race)
-      .input('ethnicity', sql.VarChar(100), validatedData.healthStatus.ethnicity)
-      .input('householdIncome', sql.VarChar(100), validatedData.healthStatus.householdIncome)
-      .input('employmentStatus', sql.VarChar(100), validatedData.healthStatus.employmentStatus)
-      .query(`
-        INSERT INTO dbo.health_status 
-        (participant_id, pregnant, developmentally_disabled, co_occurring_disorder,
-         doc_supervision, felon, physically_handicapped, post_partum,
-         primary_female_caregiver, recently_incarcerated, sex_offender,
-         lgbtq, veteran, insulin_dependent, history_of_seizures,
-         race, ethnicity, household_income, employment_status)
-        OUTPUT INSERTED.health_status_id
-        VALUES 
-        (@participantId, @pregnant, @developmentallyDisabled, @coOccurringDisorder,
-         @docSupervision, @felon, @physicallyHandicapped, @postPartum,
-         @primaryFemaleCaregiver, @recentlyIncarcerated, @sexOffender,
-         @lgbtq, @veteran, @insulinDependent, @historyOfSeizures,
-         @race, @ethnicity, @householdIncome, @employmentStatus)
-      `);
-    
-    const healthStatusId = healthStatusResult.recordset[0].health_status_id;
-    console.log('✅ Health status information inserted');
+// Health Status with new demographic fields
+console.log('🏥 Inserting health status information...');
+// Add debug logging
+console.log('Demographics values being inserted:', {
+  race: validatedData.healthStatus.race,
+  ethnicity: validatedData.healthStatus.ethnicity,
+  householdIncome: validatedData.healthStatus.householdIncome,
+  employmentStatus: validatedData.healthStatus.employmentStatus
+});
+
+const healthStatusResult = await transaction.request()
+  .input('participantId', sql.Int, participantId)
+  .input('pregnant', sql.Bit, validatedData.healthStatus.pregnant)
+  .input('developmentallyDisabled', sql.Bit, validatedData.healthStatus.developmentallyDisabled)
+  .input('coOccurringDisorder', sql.Bit, validatedData.healthStatus.coOccurringDisorder)
+  .input('docSupervision', sql.Bit, validatedData.healthStatus.docSupervision)
+  .input('felon', sql.Bit, validatedData.healthStatus.felon)
+  .input('physicallyHandicapped', sql.Bit, validatedData.healthStatus.physicallyHandicapped)
+  .input('postPartum', sql.Bit, validatedData.healthStatus.postPartum)
+  .input('primaryFemaleCaregiver', sql.Bit, validatedData.healthStatus.primaryFemaleCaregiver)
+  .input('recentlyIncarcerated', sql.Bit, validatedData.healthStatus.recentlyIncarcerated)
+  .input('sexOffender', sql.Bit, validatedData.healthStatus.sexOffender)
+  .input('lgbtq', sql.Bit, validatedData.healthStatus.lgbtq)
+  .input('veteran', sql.Bit, validatedData.healthStatus.veteran)
+  .input('insulinDependent', sql.Bit, validatedData.healthStatus.insulinDependent)
+  .input('historyOfSeizures', sql.Bit, validatedData.healthStatus.historyOfSeizures)
+  // New demographic inputs
+  .input('race', sql.VarChar(100), validatedData.healthStatus.race)
+  .input('ethnicity', sql.VarChar(100), validatedData.healthStatus.ethnicity)
+  .input('householdIncome', sql.VarChar(100), validatedData.healthStatus.householdIncome)
+  .input('employmentStatus', sql.VarChar(100), validatedData.healthStatus.employmentStatus)
+  .query(`
+    INSERT INTO dbo.health_status 
+    (participant_id, pregnant, developmentally_disabled, co_occurring_disorder,
+     doc_supervision, felon, physically_handicapped, post_partum,
+     primary_female_caregiver, recently_incarcerated, sex_offender,
+     lgbtq, veteran, insulin_dependent, history_of_seizures,
+     race, ethnicity, household_income, employment_status)
+    OUTPUT INSERTED.health_status_id
+    VALUES 
+    (@participantId, @pregnant, @developmentallyDisabled, @coOccurringDisorder,
+     @docSupervision, @felon, @physicallyHandicapped, @postPartum,
+     @primaryFemaleCaregiver, @recentlyIncarcerated, @sexOffender,
+     @lgbtq, @veteran, @insulinDependent, @historyOfSeizures,
+     @race, @ethnicity, @householdIncome, @employmentStatus)
+  `);
+
+const healthStatusId = healthStatusResult.recordset[0].health_status_id;
+console.log('✅ Health status information inserted');
 
     // Health Status Others (if any)
     if (validatedData.healthStatus.others2?.length > 0) {
