@@ -223,9 +223,9 @@ const healthStatusId = healthStatusResult.recordset[0].health_status_id;
 console.log('✅ Health status information inserted');
 
     // Health Status Others (if any)
-    if (validatedData.healthStatus.others2?.length > 0) {
+    if (validatedData.healthStatus.others?.length > 0) {
       console.log('🏥 Inserting other health status items...');
-      for (const other of validatedData.healthStatus.others2) {
+      for (const other of validatedData.healthStatus.others) {
         await transaction.request()
           .input('healthStatusId', sql.Int, healthStatusId)
           .input('description', sql.VarChar(255), other)

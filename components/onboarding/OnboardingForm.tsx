@@ -54,7 +54,12 @@ interface HealthStatus {
   insulinDependent: boolean;
   historyOfSeizures: boolean;
   others: string[];
-  [key: string]: boolean | string[] | undefined;
+  // Add the new fields
+  race: string;
+  ethnicity: string;
+  householdIncome: string;
+  employmentStatus: string;
+  [key: string]: boolean | string[] | string | undefined;
 }
 
 interface FormData {
@@ -321,7 +326,11 @@ export default function OnboardingForm() {
       veteran: false,
       insulinDependent: false,
       historyOfSeizures: false,
-      others: []
+      others: [],
+      race: '',
+      ethnicity: '',
+      householdIncome: '',
+      employmentStatus: ''
     }
   });
 

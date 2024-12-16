@@ -27,8 +27,7 @@ const HealthStatusSchema = z.object({
   race: z.string().optional().default(''),
   ethnicity: z.string().optional().default(''),
   householdIncome: z.string().optional().default(''),
-  employmentStatus: z.string().optional().default(''),
-  others2: z.array(z.string()).optional().default([])
+  employmentStatus: z.string().optional().default('')
 });
 
 export const OnboardingSchema = z.object({

@@ -22,7 +22,11 @@ interface HealthStatus {
   insulinDependent: boolean;
   historyOfSeizures: boolean;
   others: string[];
-  [key: string]: boolean | string[] | undefined;
+  race?: string;
+  ethnicity?: string;
+  householdIncome?: string;
+  employmentStatus?: string;
+  [key: string]: boolean | string[] | string | undefined;
 }
 
 interface FormData {
@@ -33,10 +37,6 @@ interface FormData {
   vehicleTagNumber?: string;
   vehicleMake?: string;
   vehicleModel?: string;
-  race?: string;
-  ethnicity?: string;
-  householdIncome?: string;
-  employmentStatus?: string;
   healthStatus: HealthStatus;
 }
 
@@ -65,7 +65,11 @@ export default function OnboardingPage2({
       veteran: false,
       insulinDependent: false,
       historyOfSeizures: false,
-      others: []
+      others: [],
+      race: '',
+      ethnicity: '',
+      householdIncome: '',
+      employmentStatus: ''
     }
   },
   handleInputChange,
@@ -317,8 +321,8 @@ export default function OnboardingPage2({
             <div className="space-y-2">
               <Label htmlFor="race" className="text-base font-medium">Race</Label>
               <Select 
-                value={formData.race} 
-                onValueChange={(value) => handleSelectChange('race', value)}
+                value={formData.healthStatus.race} 
+                onValueChange={(value) => handleHealthStatusChange({ race: value })}
               >
                 <SelectTrigger id="race" className="bg-white">
                   <SelectValue placeholder="Select race" />
@@ -339,8 +343,8 @@ export default function OnboardingPage2({
             <div className="space-y-2">
               <Label htmlFor="ethnicity" className="text-base font-medium">Ethnicity</Label>
               <Select 
-                value={formData.ethnicity} 
-                onValueChange={(value) => handleSelectChange('ethnicity', value)}
+                value={formData.healthStatus.ethnicity} 
+                onValueChange={(value) => handleHealthStatusChange({ ethnicity: value })}
               >
                 <SelectTrigger id="ethnicity" className="bg-white">
                   <SelectValue placeholder="Select ethnicity" />
@@ -356,8 +360,8 @@ export default function OnboardingPage2({
             <div className="space-y-2">
               <Label htmlFor="householdIncome" className="text-base font-medium">Household Income</Label>
               <Select 
-                value={formData.householdIncome} 
-                onValueChange={(value) => handleSelectChange('householdIncome', value)}
+                value={formData.healthStatus.householdIncome} 
+                onValueChange={(value) => handleHealthStatusChange({ householdIncome: value })}
               >
                 <SelectTrigger id="householdIncome" className="bg-white">
                   <SelectValue placeholder="Select income range" />
@@ -377,8 +381,8 @@ export default function OnboardingPage2({
             <div className="space-y-2">
               <Label htmlFor="employmentStatus" className="text-base font-medium">Employment Status</Label>
               <Select 
-                value={formData.employmentStatus} 
-                onValueChange={(value) => handleSelectChange('employmentStatus', value)}
+                value={formData.healthStatus.employmentStatus} 
+                onValueChange={(value) => handleHealthStatusChange({ employmentStatus: value })}
               >
                 <SelectTrigger id="employmentStatus" className="bg-white">
                   <SelectValue placeholder="Select employment status" />
