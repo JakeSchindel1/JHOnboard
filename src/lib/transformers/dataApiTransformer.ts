@@ -87,9 +87,9 @@ export class DataApiTransformer {
 
   private static transformVehicleInfo(formData: any) {
     return {
-      vehicleTagNumber: formData.vehicleTagNumber?.trim() || '',
-      vehicleMake: formData.vehicleMake?.trim() || '',
-      vehicleModel: formData.vehicleModel?.trim() || '',
+      make: formData.vehicleMake?.trim() || '',
+      model: formData.vehicleModel?.trim() || '',
+      tagNumber: formData.vehicleTagNumber?.trim() || '',
       insured: Boolean(formData.insured),
       insuranceType: formData.insuranceType?.trim() || '',
       policyNumber: formData.policyNumber?.trim() || ''
@@ -102,15 +102,13 @@ export class DataApiTransformer {
       mat: Boolean(formData.mat),
       matMedication: formData.matMedication?.trim() || '',
       matMedicationOther: formData.matMedicationOther?.trim() || '',
-      needPsychMedication: Boolean(formData.needPsychMedication),
-      medications: Array.isArray(formData.medications) ? 
-        formData.medications.map((med: string) => med?.trim()).filter(Boolean) : []
+      needPsychMedication: Boolean(formData.needPsychMedication)
     };
   }
 
   private static transformLegalInfo(formData: any) {
     return {
-      hasProbationOrPretrial: Boolean(formData.hasProbationOrPretrial),
+      hasProbationPretrial: Boolean(formData.hasProbationOrPretrial),
       jurisdiction: formData.jurisdiction?.trim() || '',
       otherJurisdiction: formData.otherJurisdiction?.trim() || '',
       hasPendingCharges: Boolean(formData.hasPendingCharges),
@@ -153,33 +151,6 @@ export class DataApiTransformer {
     };
   }
 
-  private static transformSignatures(formData: any) {
-    const signatures: any = {};
-    const signatureTypes = [
-      'treatment',
-      'priceConsent',
-      'medication',
-      'criticalRules',
-      'houseRules',
-      'ethics',
-      'criminalHistory'
-    ];
-
-    signatureTypes.forEach(type => {
-      signatures[`${type}Signature`] = formData[`${type}Signature`]?.trim() || '';
-      signatures[`${type}SignatureTimestamp`] = formData[`${type}SignatureTimestamp`] || '';
-      signatures[`${type}SignatureId`] = formData[`${type}SignatureId`]?.trim() || '';
-      signatures[`${type}WitnessSignature`] = formData[`${type}WitnessSignature`]?.trim() || '';
-      signatures[`${type}WitnessTimestamp`] = formData[`${type}WitnessTimestamp`] || '';
-      signatures[`${type}WitnessSignatureId`] = formData[`${type}WitnessSignatureId`]?.trim() || '';
-      if (type !== 'medication') { // Medication doesn't have an 'agreed' field
-        signatures[`${type}Agreed`] = Boolean(formData[`${type}Agreed`]);
-      }
-    });
-
-    return signatures;
-  }
-
   static async createParticipantRecord(formData: any) {
     try {
       // Validate critical data
@@ -197,13 +168,23 @@ export class DataApiTransformer {
 
       // Transform all data sections
       const submitPayload = {
-        ...this.transformPersonalInfo(formData),
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        intakeDate: formData.intakeDate,
+        housingLocation: formData.housingLocation?.toLowerCase() || '',
+        dateOfBirth: formData.dateOfBirth,
+        socialSecurityNumber: formData.socialSecurityNumber,
+        sex: formData.sex?.toLowerCase() || '',
+        email: formData.email.toLowerCase().trim(),
+        driversLicenseNumber: formData.driversLicenseNumber?.trim() || '',
+      
+        // Ensure medications is always an array
+        medications: formData.medications || [],
+        
         vehicle: this.transformVehicleInfo(formData),
         medicalInformation: this.transformMedicalInfo(formData),
         legalStatus: this.transformLegalInfo(formData),
         signatures: formData.signatures,
-      
-        // Emergency Contact
         emergencyContact: {
           firstName: formData.emergencyContact.firstName.trim(),
           lastName: formData.emergencyContact.lastName.trim(),
@@ -211,19 +192,13 @@ export class DataApiTransformer {
           relationship: formData.emergencyContact.relationship.trim(),
           otherRelationship: formData.emergencyContact.otherRelationship?.trim() || ''
         },
-
-        // Authorized People
         authorizedPeople: (formData.authorizedPeople || []).map((person: any) => ({
           firstName: person.firstName.trim(),
           lastName: person.lastName.trim(),
           relationship: person.relationship.trim(),
           phone: person.phone.trim()
         })),
-
-        // Health Status
         healthStatus: this.transformHealthStatus(formData.healthStatus),
-
-        // Additional Agreements
         mandatoryReportingAgreed: Boolean(formData.mandatoryReportingAgreed),
         programInfoReviewed: Boolean(formData.programInfoReviewed)
       };
