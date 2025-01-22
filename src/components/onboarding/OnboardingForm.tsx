@@ -324,6 +324,29 @@ export default function OnboardingForm() {
     return errors;
   };
 
+  const downloadPDF = async (data: FormData) => {
+    try {
+      const response = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'onboarding.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('PDF download failed:', error);
+      toast.error('Failed to download PDF');
+    }
+  };
+  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -339,26 +362,23 @@ export default function OnboardingForm() {
     
     setIsSubmitting(true);
     setSubmitError(null);
-
+  
     try {
       const missingFields = validateFormData(formData);
       if (missingFields.length > 0) {
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
-
+  
       const result = await DataApiTransformer.createParticipantRecord(formData);
       if (!result.success) {
         throw new Error(result.message || 'Form submission failed');
       }
-
+  
+      await downloadPDF(formData);
       router.push('/success');
     } catch (error) {
       console.error('Form submission error:', error);
-      setSubmitError(
-        error instanceof Error 
-          ? error.message 
-          : 'An unexpected error occurred'
-      );
+      setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }
