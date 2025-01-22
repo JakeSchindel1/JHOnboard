@@ -188,10 +188,10 @@ export class DataApiTransformer {
       this.validateSignatures(formData);
 
       // Check emergency contact data before transformation
-      if (!formData.emergencyContactFirstName || 
-          !formData.emergencyContactLastName || 
-          !formData.emergencyContactPhone || 
-          !formData.emergencyContactRelationship) {
+      if (!formData.emergencyContact?.firstName || 
+          !formData.emergencyContact?.lastName || 
+          !formData.emergencyContact?.phone || 
+          !formData.emergencyContact?.relationship) {
         throw new Error('Missing required emergency contact information');
       }
 
@@ -204,11 +204,13 @@ export class DataApiTransformer {
         ...this.transformSignatures(formData),
 
         // Emergency Contact
-        emergencyContactFirstName: formData.emergencyContactFirstName.trim(),
-        emergencyContactLastName: formData.emergencyContactLastName.trim(),
-        emergencyContactPhone: formData.emergencyContactPhone.trim(),
-        emergencyContactRelationship: formData.emergencyContactRelationship.trim(),
-        otherRelationship: formData.otherRelationship?.trim() || '',
+        emergencyContact: {
+          firstName: formData.emergencyContact.firstName.trim(),
+          lastName: formData.emergencyContact.lastName.trim(),
+          phone: formData.emergencyContact.phone.trim(),
+          relationship: formData.emergencyContact.relationship.trim(),
+          otherRelationship: formData.emergencyContact.otherRelationship?.trim() || ''
+        },
 
         // Authorized People
         authorizedPeople: (formData.authorizedPeople || []).map((person: any) => ({
