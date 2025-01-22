@@ -81,7 +81,7 @@ export default function OnboardingEthicsPage({
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-gray-900">Code of Ethics and Values</h1>
-        <p className="text-gray-600">Journey House Foundation's guiding principles</p>
+        <p className="text-gray-600">Journey House Foundation&apos;s guiding principles</p>
       </div>
 
       <Card>
@@ -119,7 +119,7 @@ export default function OnboardingEthicsPage({
               {/* Ethics Section */}
               <div>
                 <h3 className="font-semibold text-gray-900 mb-3">Code of Ethics</h3>
-                <p className="mb-4">Journey House is committed to protecting participants' confidentiality and doing no harm - especially when contacting new members of the community who may have little recovery capital.</p>
+                <p className="mb-4">Journey House is committed to protecting participants&apos; confidentiality and doing no harm - especially when contacting new members of the community who may have little recovery capital.</p>
                 <ol className="list-decimal pl-5 space-y-2">
                   <li>We are stewards of the public trust</li>
                   <li>We use our resources wisely and we lead by example</li>
@@ -132,7 +132,7 @@ export default function OnboardingEthicsPage({
                   <li>We treat each other with compassion, respect, and understanding</li>
                   <li>We are respectful of the diversity of our community, which we define as culture, gender, social status, and values of our community</li>
                   <li>We always respect the Journey House mission and have no competition with each other</li>
-                  <li>We DO NOT take advantage of others' weaknesses</li>
+                  <li>We DO NOT take advantage of others&apos; weaknesses</li>
                 </ol>
               </div>
             </div>

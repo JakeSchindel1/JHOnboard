@@ -87,7 +87,7 @@ export default function OnboardingCriticalRulesPage({
     if (currentSlide === 0) {
       setViewedSlides(new Set([0]));
     }
-  }, []);
+  }, [currentSlide]);
 
   const handleNext = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();

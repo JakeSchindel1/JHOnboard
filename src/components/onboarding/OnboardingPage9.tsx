@@ -144,7 +144,7 @@ export default function PricingAgreement({
           >
             <div className="space-y-4">
               <p className="text-sm text-gray-800 leading-relaxed">
-                It is the policy of The Journey House Richmond, LLC ("Journey House") that residents are not allowed to fall behind on their administrative fees, Programming fees or Bed fees. Administrative "Processing" fees & program fees are due at the time of admission and thenceforth recur. Bed Fees are due every Friday for the week in advance. Residents must fill out a Program Payment Form (which requires a confirmation signature from Executive staff) and an Intake Monitory Agreement Form.
+                It is the policy of The Journey House Richmond, LLC (&quot;Journey House&quot;) that residents are not allowed to fall behind on their administrative fees, Programming fees or Bed fees. Administrative &quot;Processing&quot; fees & program fees are due at the time of admission and thenceforth recur. Bed Fees are due every Friday for the week in advance. Residents must fill out a Program Payment Form (which requires a confirmation signature from Executive staff) and an Intake Monitory Agreement Form.
               </p>
 
               <p className="text-sm text-gray-800 leading-relaxed">
@@ -217,7 +217,7 @@ export default function PricingAgreement({
               htmlFor="priceConsentAgreed"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              I have read and understand Journey House's Fee Schedule and Payment Policy
+              I have read and understand Journey House&apos;s Fee Schedule and Payment Policy
             </label>
           </div>
         </CardContent>
@@ -245,7 +245,7 @@ export default function PricingAgreement({
                 className="bg-white"
               />
               <p className="text-sm text-gray-600">
-                By typing your name above, you acknowledge that you have read, understand, and agree to Journey House's Fee Schedule and Payment Policy.
+                By typing your name above, you acknowledge that you have read, understand, and agree to Journey House&apos;s Fee Schedule and Payment Policy.
               </p>
               {currentSignature?.signatureTimestamp && (
                 <p className="text-sm text-gray-500">

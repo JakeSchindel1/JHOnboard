@@ -124,7 +124,7 @@ export default function OnboardingPage2({
             {/* Driver's License */}
             <div className="space-y-2">
               <Label htmlFor="driversLicenseNumber">
-                <RequiredLabel>Driver's License Number</RequiredLabel>
+                <RequiredLabel>Driver&apos;s License Number</RequiredLabel>
               </Label>
               <Input
                 id="driversLicenseNumber"
@@ -134,7 +134,7 @@ export default function OnboardingPage2({
                 className="bg-white"
                 required
               />
-              <p className="text-sm text-gray-500">Your current driver's license number</p>
+              <p className="text-sm text-gray-500">Your current driver&apos;s license number</p>
             </div>
 
             {/* Email */}
@@ -238,7 +238,7 @@ export default function OnboardingPage2({
                 placeholder="e.g., ABC-1234"
                 disabled={noCar}
               />
-              <p className="text-sm text-gray-500">Your vehicle's license plate number</p>
+              <p className="text-sm text-gray-500">Your vehicle&apos;s license plate number</p>
             </div>
           </div>
         </CardContent>

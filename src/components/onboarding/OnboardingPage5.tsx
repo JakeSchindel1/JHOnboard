@@ -202,7 +202,7 @@ export default function OnboardingPage5({
                 className="bg-white"
               />
               <p className="text-sm text-gray-600">
-                By typing your name above, you acknowledge understanding Journey House's emergency room and medical appointments policies.
+                By typing your name above, you acknowledge understanding Journey House&apos;s emergency room and medical appointments policies.
               </p>
               {currentSignature?.signatureTimestamp && (
                 <p className="text-sm text-gray-500">

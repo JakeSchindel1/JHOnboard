@@ -5,9 +5,6 @@ const nextConfig = {
   },
   generateEtags: false,
   distDir: '.next',
-  experimental: {
-    appDir: true,
-  }
 }
 
 module.exports = nextConfig

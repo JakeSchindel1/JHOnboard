@@ -146,7 +146,7 @@ export default function ResidentContract({
           >
             <div className="space-y-4">
               <p className="text-sm text-gray-800 leading-relaxed">
-                I understand that I am ONLY a guest at The Journey House, LLC ("Journey House"), and not a tenant. I understand that I may be asked to leave the property at any time, and I must do so in a timely manner (usually within one hour.) If my belongings are not promptly moved, Journey House will have them bagged up by the residence house leaders, and they will be stored for a maximum of fourteen days. If belongings are not removed from the residence within fourteen days, Journey House will donate the belongings to charity or dispose of them. Failure to leave property when asked to do so will result in police contact and possible criminal charges.
+                I understand that I am ONLY a guest at The Journey House, LLC (&quot;Journey House&quot;), and not a tenant. I understand that I may be asked to leave the property at any time, and I must do so in a timely manner (usually within one hour.) If my belongings are not promptly moved, Journey House will have them bagged up by the residence house leaders, and they will be stored for a maximum of fourteen days. If belongings are not removed from the residence within fourteen days, Journey House will donate the belongings to charity or dispose of them. Failure to leave property when asked to do so will result in police contact and possible criminal charges.
               </p>
             </div>
           </ScrollArea>
@@ -207,7 +207,7 @@ export default function ResidentContract({
             <div className="space-y-6">
               <div className="space-y-4">
                 <p className="text-sm text-gray-800 leading-relaxed">
-                  The Journey House, LLC ("Journey House") houses are transitional living residences for individuals who are recovering from substance use disorder. Residents are subject to urine drug screens at any time while living in the residence.
+                  The Journey House, LLC (&quot;Journey House&quot;) houses are transitional living residences for individuals who are recovering from substance use disorder. Residents are subject to urine drug screens at any time while living in the residence.
                 </p>
                 
                 <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
@@ -302,7 +302,7 @@ export default function ResidentContract({
                       <li>Violence or threats of violence</li>
                       <li>Abusive verbal behavior</li>
                       <li>Physical violence</li>
-                      <li>A "chronic" bad attitude</li>
+                      <li>A &quot;chronic&quot; bad attitude</li>
                       <li>Gambling</li>
                       <li>Destruction of house property</li>
                       <li>Loud music, radio, or instrument</li>
@@ -328,7 +328,7 @@ export default function ResidentContract({
                       <li>Rooms are subject to inspection at any time. Rooms should be kept neat and clean, and the beds should be made daily.</li>
                       <li>Residence must be cleaned by all residents daily and inspected by the house leader.</li>
                       <li>Laundry must be done weekly, including bedding and towels.</li>
-                      <li>You can have no more than 10 days' worth of clothes in the residence. Your clothes must be stored in closets, dressers/bins.</li>
+                      <li>You can have no more than 10 days&apos; worth of clothes in the residence. Your clothes must be stored in closets, dressers/bins.</li>
                       <li>Food and drinks can be stored only in the kitchen. Food can be eaten only in the kitchen or eating area. NO FOOD OR DRINKS IN YOUR BEDROOM.</li>
                       <li>Residents are subject to random searches of their personal belongings and physical body.</li>
                     </ul>
@@ -348,7 +348,7 @@ export default function ResidentContract({
                     <h3 className="text-lg font-bold">Medication</h3>
                     <ul className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
                       <li>Residents must self-administer medication as prescribed by physician.</li>
-                      <li>Residents must not distribute medication for any reason without physician's order.</li>
+                      <li>Residents must not distribute medication for any reason without physician&apos;s order.</li>
                       <li>Residents may not be prescribed narcotic medications unless permission has been given by staff.</li>
                       <li>Medication must be stored in a lockbox and secured by the peer leader within the recovery residence.</li>
                       <li>Residents will be subject to random witnessed pill counts.</li>
@@ -360,7 +360,7 @@ export default function ResidentContract({
                     <h3 className="text-lg font-bold">Visitors</h3>
                     <ul className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
                       <li>All visitors must be pre-approved by the house leader.</li>
-                      <li>Visitors are allowed in the common areas only, not in residents' bedrooms.</li>
+                      <li>Visitors are allowed in the common areas only, not in residents&apos; bedrooms.</li>
                       <li>Visitors must have a minimum of 30 days of sobriety.</li>
                       <li>Overnights for visitors must be approved by Journey House management two day prior to the date of overnight.</li>
                     </ul>
@@ -372,7 +372,7 @@ export default function ResidentContract({
                       <li>Smoking is prohibited in the house. Violation of this policy will result in offending residents being placed on a minimum 2-week restriction and possible dismissal.</li>
                       <li>Smoking is not permitted in company vehicles.</li>
                       <li>Smoking is permitted in designated areas only.</li>
-                      <li>Vaping is allowed in the residence if ALL residents have voted "yes".</li>
+                      <li>Vaping is allowed in the residence if ALL residents have voted &quot;yes&quot;.</li>
                     </ul>
                   </section>
 

@@ -235,7 +235,7 @@ export default function OnboardingPage8({
                 className="bg-white"
               />
               <p className="text-sm text-gray-600">
-                By typing your name above, you acknowledge understanding Journey House's treatment policies, including consent for medical care, mandatory reporting requirements, and emergency procedures.
+                By typing your name above, you acknowledge understanding Journey House&apos;s treatment policies, including consent for medical care, mandatory reporting requirements, and emergency procedures.
               </p>
               {currentSignature?.signatureTimestamp && (
                 <p className="text-sm text-gray-500">

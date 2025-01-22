@@ -133,7 +133,7 @@ export default function OnboardingPage3({
                 placeholder="First name"
                 required
               />
-              <p className="text-sm text-gray-500">Emergency contact's first name</p>
+              <p className="text-sm text-gray-500">Emergency contact&apos;s first name</p>
             </div>
 
             {/* Contact Last Name */}
@@ -150,7 +150,7 @@ export default function OnboardingPage3({
                 placeholder="Last name"
                 required
               />
-              <p className="text-sm text-gray-500">Emergency contact's last name</p>
+              <p className="text-sm text-gray-500">Emergency contact&apos;s last name</p>
             </div>
 
             {/* Contact Phone */}

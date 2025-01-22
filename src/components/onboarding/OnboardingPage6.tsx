@@ -242,7 +242,7 @@ export default function OnboardingPage6({
                 className="bg-white"
               />
               <p className="text-sm text-gray-600">
-                By typing your name above, you confirm that this medication list is complete and accurate, and you understand Journey House's medication storage and lockbox requirements.
+                By typing your name above, you confirm that this medication list is complete and accurate, and you understand Journey House&apos;s medication storage and lockbox requirements.
               </p>
               {currentSignature?.signatureTimestamp && (
                 <p className="text-sm text-gray-500">
