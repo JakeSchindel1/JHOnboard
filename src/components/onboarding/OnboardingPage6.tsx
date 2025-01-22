@@ -6,28 +6,9 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { AlertCircle, ListPlus, FileCheck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { OnboardingPage6Props, Signature } from '@/types';
 
-interface OnboardingPage6Props {
-  formData: {
-    medications: string[];
-    matMedication: string | null;
-    matMedicationOther: string;
-    medicationSignature: string;
-    medicationSignatureDate: string;
-    medicationWitnessSignature: string;
-    medicationWitnessTimestamp: string;
-    medicationSignatureId: string;
-  };
-  isOnMAT: boolean | null;
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string | string[] | boolean | null) => void;
-}
-
-const generateSignatureId = () => {
-  const timestamp = Date.now();
-  const randomString = Math.random().toString(36).substring(2, 15);
-  return `JH-MED-${timestamp}-${randomString}`;
-};
+const generateSignatureId = () => `JH-MED-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
 export default function OnboardingPage6({
   formData,
@@ -36,6 +17,7 @@ export default function OnboardingPage6({
   handleSelectChange
 }: OnboardingPage6Props) {
   const [medications, setMedications] = React.useState<string[]>(formData.medications || ['']);
+  const currentSignature = formData.signatures.find(s => s.signatureType === 'medication');
 
   const handleMedicationChange = (index: number, value: string) => {
     const newMedications = [...medications];
@@ -54,42 +36,57 @@ export default function OnboardingPage6({
     handleSelectChange('medications', newMedications);
   };
 
-  const handleSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleInputChange(e);
-    if (e.target.name === 'medicationSignature') {
-      const now = new Date();
-      const timestamp = now.toISOString();
-      const signatureId = generateSignatureId();
-      handleSelectChange('medicationSignatureDate', timestamp);
-      handleSelectChange('medicationSignatureId', signatureId);
-    }
+  const handleSignatureChange = (signature: string) => {
+    const now = new Date();
+    const signatureId = generateSignatureId();
+    
+    const newSignature: Signature = {
+      signatureType: 'medication',
+      signature,
+      signatureTimestamp: now.toISOString(),
+      signatureId,
+      agreed: true,
+      witnessSignature: currentSignature?.witnessSignature,
+      witnessTimestamp: currentSignature?.witnessTimestamp
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'medication'),
+      newSignature
+    ]);
   };
 
-  const handleWitnessSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleInputChange(e);
-    if (e.target.name === 'medicationWitnessSignature' && e.target.value) {
-      const now = new Date();
-      const timestamp = now.toISOString();
-      handleSelectChange('medicationWitnessTimestamp', timestamp);
-    }
+  const handleWitnessSignature = (witnessSignature: string) => {
+    if (!currentSignature) return;
+
+    const now = new Date();
+    const updatedSignature: Signature = {
+      ...currentSignature,
+      witnessSignature,
+      witnessTimestamp: now.toISOString()
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'medication'),
+      updatedSignature
+    ]);
   };
 
   const handleMatMedicationChange = (value: string) => {
-    handleSelectChange('matMedication', value === '' ? null : value);
+    handleSelectChange('medicalInformation.matMedication', value);
     if (value !== 'other') {
-      handleSelectChange('matMedicationOther', '');
+      handleSelectChange('medicalInformation.matMedicationOther', '');
     }
   };
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">MEDICATION POLICY</h2>
         <p className="text-sm text-gray-600">Please read carefully and complete all sections</p>
       </div>
 
-      {/* Policy Section */}
+      {/* Policy Information Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -129,7 +126,7 @@ export default function OnboardingPage6({
         </CardContent>
       </Card>
 
-      {/* Medication List Section */}
+      {/* Medication List Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -138,8 +135,7 @@ export default function OnboardingPage6({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* MAT Medication Section - Only shows if isOnMAT is true */}
-          {isOnMAT === true && (
+          {isOnMAT && (
             <div className="mb-6">
               <Card className="bg-blue-50">
                 <CardHeader>
@@ -147,13 +143,14 @@ export default function OnboardingPage6({
                 </CardHeader>
                 <CardContent>
                   <Select
-                    value={formData.matMedication || ''}
+                    value={formData.medicalInformation.matMedication || 'unselected'}
                     onValueChange={handleMatMedicationChange}
                   >
                     <SelectTrigger className="bg-white">
                       <SelectValue placeholder="Select your MAT medication" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="unselected">Select medication</SelectItem>
                       <SelectItem value="belbuca">Belbuca</SelectItem>
                       <SelectItem value="brixadi">Brixadi</SelectItem>
                       <SelectItem value="bunavail">Bunavail</SelectItem>
@@ -171,14 +168,15 @@ export default function OnboardingPage6({
                       <SelectItem value="vivitrol">Vivitrol</SelectItem>
                       <SelectItem value="zubsolv">Zubsolv</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                     </SelectContent>
                   </Select>
-                  {formData.matMedication === 'other' && (
+                  {formData.medicalInformation.matMedication === 'other' && (
                     <Input
                       className="mt-2 bg-white"
                       placeholder="Please specify your MAT medication"
-                      value={formData.matMedicationOther}
-                      onChange={(e) => handleSelectChange('matMedicationOther', e.target.value)}
+                      value={formData.medicalInformation.matMedicationOther}
+                      onChange={(e) => handleSelectChange('medicalInformation.matMedicationOther', e.target.value)}
                     />
                   )}
                 </CardContent>
@@ -223,82 +221,63 @@ export default function OnboardingPage6({
         </CardContent>
       </Card>
 
-      {/* Signature Section */}
+      {/* Signature Card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileCheck className="h-5 w-5 text-green-500" />
-            Authorization &amp; Signatures
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-emerald-500" />
+            Authorization & Signatures
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Resident Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="medicationSignature" className="text-base font-semibold block mb-2">
-                  Resident Signature
-                </Label>
-                <Input
-                  id="medicationSignature"
-                  name="medicationSignature"
-                  value={formData.medicationSignature}
-                  onChange={handleSignature}
-                  required
-                  placeholder="Type your full legal name to sign"
-                  className="bg-white"
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  By typing your name above, you confirm that this medication list is complete and accurate, and you understand the lockbox requirement.
-                </p>
-                {formData.medicationSignatureDate && (
-                  <div className="mt-3 text-sm text-gray-500">
-                    <p>Signed on: {new Date(formData.medicationSignatureDate).toLocaleString()}</p>
-                    <p>Signature ID: {formData.medicationSignatureId}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Witness Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="medicationWitnessSignature" className="text-base font-semibold block mb-2">
-                  Witness Signature
-                </Label>
-                <Input
-                  id="medicationWitnessSignature"
-                  name="medicationWitnessSignature"
-                  value={formData.medicationWitnessSignature}
-                  onChange={handleWitnessSignature}
-                  required
-                  disabled={!formData.medicationSignature}
-                  placeholder="Witness full legal name"
-                  className="bg-white"
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  As a witness, your signature verifies that you observed the resident sign this document.
-                </p>
-                {formData.medicationWitnessTimestamp && (
-                  <p className="mt-3 text-sm text-gray-500">
-                    Witnessed on: {new Date(formData.medicationWitnessTimestamp).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center space-y-2">
-            <Separator className="my-4" />
-            <p className="text-sm text-gray-500">
-              This digital signature agreement is legally binding and includes a timestamp record of both signatures.
-            </p>
-            {formData.medicationSignatureId && (
-              <p className="text-sm font-medium">
-                Document Reference Number: {formData.medicationSignatureId}
+        <CardContent className="p-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <Label htmlFor="medicationSignature">Resident Signature</Label>
+              <Input
+                id="medicationSignature"
+                value={currentSignature?.signature || ''}
+                onChange={(e) => handleSignatureChange(e.target.value)}
+                required
+                placeholder="Type your full legal name to sign"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                By typing your name above, you confirm that this medication list is complete and accurate, and you understand Journey House's medication storage and lockbox requirements.
               </p>
-            )}
+              {currentSignature?.signatureTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Signed: {new Date(currentSignature.signatureTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <Label htmlFor="medicationWitnessSignature">Witness Signature</Label>
+              <Input
+                id="medicationWitnessSignature"
+                value={currentSignature?.witnessSignature || ''}
+                onChange={(e) => handleWitnessSignature(e.target.value)}
+                required
+                disabled={!currentSignature?.signature}
+                placeholder="Witness full legal name"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                As a witness, your signature verifies that you observed the resident sign this document.
+              </p>
+              {currentSignature?.witnessTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Witnessed: {new Date(currentSignature.witnessTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
           </div>
+
+          {currentSignature?.signatureId && (
+            <div className="mt-6 pt-6 border-t text-center">
+              <p className="text-sm text-gray-500">Document ID: {currentSignature.signatureId}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

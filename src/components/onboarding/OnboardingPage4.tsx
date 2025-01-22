@@ -3,73 +3,76 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ClipboardList, FileText } from "lucide-react";
+import { ClipboardList, FileText, PlusCircle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { OnboardingPageProps } from '@/types';
 
-interface FormData {
-  dualDiagnosis: boolean | null;
-  mat: boolean | null;
-  matMedication: string | null;
-  needPsychMedication: boolean | null;
-  hasProbationOrPretrial: boolean | null;
-  jurisdiction: string | null;
+interface JurisdictionEntry {
+  jurisdiction: string;
   otherJurisdiction?: string;
-}
-
-interface OnboardingPage4Props {
-  formData: FormData;
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string | boolean | null) => void;
-  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  type: 'probation' | 'pretrial' | 'both' | 'unselected';
 }
 
 export default function OnboardingPage4({
   formData,
   handleInputChange,
   handleSelectChange,
-  setCurrentPage
-}: OnboardingPage4Props) {
+}: OnboardingPageProps) {
   const {
-    dualDiagnosis = null,
-    mat = null,
-    matMedication = null,
-    needPsychMedication = null,
-    hasProbationOrPretrial = null,
-    jurisdiction = null,
-    otherJurisdiction = ''
-  } = formData;
+    dualDiagnosis = false,
+    mat = false,
+    needPsychMedication = false,
+  } = formData.medicalInformation;
+
+  const { hasProbationPretrial: hasProbationOrPretrial = false } = formData.legalStatus;
+
+  const [jurisdictions, setJurisdictions] = React.useState<JurisdictionEntry[]>([
+    { jurisdiction: 'unselected', type: 'unselected' }
+  ]);
 
   const handleMatChange = (value: string) => {
-    const isMatNeeded = value === 'yes';
-    handleSelectChange('mat', isMatNeeded);
-    if (!isMatNeeded) {
-      handleSelectChange('matMedication', 'none');  // Changed from null to 'none'
-    }
+    handleSelectChange('medicalInformation.mat', value === 'yes');
   };
 
   const handleProbationChange = (value: string) => {
     const hasLegalStatus = value === 'yes';
-    handleSelectChange('hasProbationOrPretrial', hasLegalStatus);
+    handleSelectChange('legalStatus.hasProbationPretrial', hasLegalStatus);
     if (!hasLegalStatus) {
-      handleSelectChange('jurisdiction', 'none');  // Changed from null to 'none'
-      handleSelectChange('otherJurisdiction', '');
+      setJurisdictions([{ jurisdiction: 'unselected', type: 'unselected' }]);
     }
   };
 
-  const handleJurisdictionChange = (value: string) => {
-    handleSelectChange('jurisdiction', value);  // Removed the null condition since we'll use 'none'
+  const handleJurisdictionChange = (index: number, value: string) => {
+    const newJurisdictions = [...jurisdictions];
+    newJurisdictions[index].jurisdiction = value;
     if (value !== 'other') {
-      handleSelectChange('otherJurisdiction', '');
+      newJurisdictions[index].otherJurisdiction = '';
     }
+    setJurisdictions(newJurisdictions);
+    handleSelectChange('legalStatus.jurisdiction', newJurisdictions.map(j => j.jurisdiction).join(','));
   };
 
-  // Add handler for MAT medication if not already present
-  const handleMatMedicationChange = (value: string) => {
-    handleSelectChange('matMedication', value || 'none');  // Ensure we never set null
+  const handleOtherJurisdictionChange = (index: number, value: string) => {
+    const newJurisdictions = [...jurisdictions];
+    newJurisdictions[index].otherJurisdiction = value;
+    setJurisdictions(newJurisdictions);
+    handleSelectChange('legalStatus.otherJurisdiction', newJurisdictions.map(j => j.otherJurisdiction || '').join(','));
+  };
+
+  const addJurisdiction = () => {
+    setJurisdictions([...jurisdictions, { jurisdiction: 'unselected', type: 'unselected' }]);
+  };
+
+  const removeJurisdiction = (index: number) => {
+    const newJurisdictions = jurisdictions.filter((_, i) => i !== index);
+    setJurisdictions(newJurisdictions);
+    handleSelectChange('legalStatus.jurisdiction', newJurisdictions.map(j => j.jurisdiction).join(','));
+    handleSelectChange('legalStatus.jurisdictionTypes', newJurisdictions.map(j => j.type).join(','));
+    handleSelectChange('legalStatus.otherJurisdiction', newJurisdictions.map(j => j.otherJurisdiction || '').join(','));
   };
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">MEDICAL & LEGAL STATUS</h2>
         <p className="text-sm text-gray-600">Please complete all sections accurately</p>
@@ -91,8 +94,8 @@ export default function OnboardingPage4({
                 Dual Diagnosis
               </Label>
               <Select 
-                value={dualDiagnosis === null ? '' : (dualDiagnosis ? 'yes' : 'no')}
-                onValueChange={(value) => handleSelectChange('dualDiagnosis', value === '' ? null : value === 'yes')}
+                value={dualDiagnosis ? 'yes' : 'no'}
+                onValueChange={(value) => handleSelectChange('medicalInformation.dualDiagnosis', value === 'yes')}
               >
                 <SelectTrigger id="dualDiagnosis" className="bg-white mb-2">
                   <SelectValue placeholder="Select dual diagnosis status" />
@@ -113,7 +116,7 @@ export default function OnboardingPage4({
                 MAT (Medication-Assisted Treatment)
               </Label>
               <Select 
-                value={mat === null ? '' : (mat ? 'yes' : 'no')}
+                value={mat ? 'yes' : 'no'}
                 onValueChange={handleMatChange}
               >
                 <SelectTrigger id="mat" className="bg-white mb-2">
@@ -129,40 +132,14 @@ export default function OnboardingPage4({
               </p>
             </div>
 
-            {/* MAT Medication (if applicable) */}
-            {mat && (
-              <div className="flex flex-col h-36">
-                <Label htmlFor="matMedication" className="text-base font-medium mb-2">
-                  MAT Medication
-                </Label>
-                <Select
-                  value={matMedication || 'none'}
-                  onValueChange={handleMatMedicationChange}
-                >
-                  <SelectTrigger id="matMedication" className="bg-white mb-2">
-                    <SelectValue placeholder="Select MAT medication" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="suboxone">Suboxone</SelectItem>
-                    <SelectItem value="methadone">Methadone</SelectItem>
-                    <SelectItem value="vivitrol">Vivitrol</SelectItem>
-                    <SelectItem value="none">None</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-gray-500">
-                  Select your current MAT medication
-                </p>
-              </div>
-            )}
-
             {/* Psychiatric Medication */}
             <div className="flex flex-col h-36">
               <Label htmlFor="needPsychMedication" className="text-base font-medium mb-2">
                 Need Psychiatric Medication
               </Label>
               <Select 
-                value={needPsychMedication === null ? '' : (needPsychMedication ? 'yes' : 'no')}
-                onValueChange={(value) => handleSelectChange('needPsychMedication', value === '' ? null : value === 'yes')}
+                value={needPsychMedication ? 'yes' : 'no'}
+                onValueChange={(value) => handleSelectChange('medicalInformation.needPsychMedication', value === 'yes')}
               >
                 <SelectTrigger id="needPsychMedication" className="bg-white mb-2">
                   <SelectValue placeholder="Select psychiatric medication need" />
@@ -173,7 +150,7 @@ export default function OnboardingPage4({
                 </SelectContent>
               </Select>
               <p className="text-sm text-gray-500">
-                Indicate if you require psychiatric medications
+                Have less than two weeks of medication
               </p>
             </div>
           </div>
@@ -189,14 +166,14 @@ export default function OnboardingPage4({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-6">
             {/* Probation Status */}
-            <div className="flex flex-col h-36">
+            <div className="flex flex-col">
               <Label htmlFor="hasProbationOrPretrial" className="text-base font-medium mb-2">
                 Probation or Pretrial
               </Label>
               <Select 
-                value={hasProbationOrPretrial === null ? '' : (hasProbationOrPretrial ? 'yes' : 'no')}
+                value={hasProbationOrPretrial ? 'yes' : 'no'}
                 onValueChange={handleProbationChange}
               >
                 <SelectTrigger id="hasProbationOrPretrial" className="bg-white mb-2">
@@ -212,53 +189,101 @@ export default function OnboardingPage4({
               </p>
             </div>
 
-            {/* Jurisdiction */}
-            <div className="flex flex-col h-36">
-              <Label 
-                htmlFor="jurisdiction" 
-                className={`text-base font-medium mb-2 ${!hasProbationOrPretrial ? 'text-gray-400' : ''}`}
-              >
-                Jurisdiction
-              </Label>
-              <Select 
-                value={jurisdiction || 'none'}
-                onValueChange={handleJurisdictionChange}
-                disabled={!hasProbationOrPretrial}
-              >
-                <SelectTrigger id="jurisdiction" className="bg-white mb-2">
-                  <SelectValue placeholder="Select jurisdiction" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="henrico">Henrico</SelectItem>
-                  <SelectItem value="chesterfield">Chesterfield</SelectItem>
-                  <SelectItem value="richmond">Richmond City</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                  <SelectItem value="none">None</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className={`text-sm ${!hasProbationOrPretrial ? 'text-gray-400' : 'text-gray-500'}`}>
-                Select the jurisdiction of your case
-              </p>
-            </div>
+            {/* Jurisdictions */}
+            {hasProbationOrPretrial && (
+              <div className="space-y-4">
+                {jurisdictions.map((jurisdictionEntry, index) => (
+                  <div key={index} className="p-4 border rounded-lg bg-gray-50">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-medium">Jurisdiction {index + 1}</h3>
+                      {index > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeJurisdiction(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <XCircle className="h-5 w-5" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex flex-col mb-4">
+                        <Label htmlFor={`type-${index}`} className="text-base font-medium mb-2">
+                          Type
+                        </Label>
+                        <Select 
+                          value={jurisdictionEntry.type}
+                          onValueChange={(value) => {
+                            const newJurisdictions = [...jurisdictions];
+                            newJurisdictions[index].type = value as 'probation' | 'pretrial' | 'both' | 'unselected';
+                            setJurisdictions(newJurisdictions);
+                            handleSelectChange('jurisdictionTypes', newJurisdictions.map(j => j.type).join(','));
+                          }}
+                        >
+                          <SelectTrigger id={`type-${index}`} className="bg-white">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unselected">Select type</SelectItem>
+                            <SelectItem value="probation">Probation</SelectItem>
+                            <SelectItem value="pretrial">Pretrial</SelectItem>
+                            <SelectItem value="both">Both</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-            {/* Other Jurisdiction */}
-            {jurisdiction === 'other' && hasProbationOrPretrial && (
-              <div className="flex flex-col h-36">
-                <Label htmlFor="otherJurisdiction" className="text-base font-medium mb-2">
-                  Other Jurisdiction
-                </Label>
-                <Input
-                  id="otherJurisdiction"
-                  name="otherJurisdiction"
-                  value={otherJurisdiction || ''}
-                  onChange={handleInputChange}
-                  required
-                  className="bg-white mb-2"
-                  placeholder="Please specify jurisdiction"
-                />
-                <p className="text-sm text-gray-500">
-                  Please specify your jurisdiction
-                </p>
+                      <div className="flex flex-col">
+                        <Label htmlFor={`jurisdiction-${index}`} className="text-base font-medium mb-2">
+                          Jurisdiction
+                        </Label>
+                        <Select 
+                          value={jurisdictionEntry.jurisdiction}
+                          onValueChange={(value) => handleJurisdictionChange(index, value)}
+                        >
+                          <SelectTrigger id={`jurisdiction-${index}`} className="bg-white">
+                            <SelectValue placeholder="Select jurisdiction" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unselected">Select jurisdiction</SelectItem>
+                            <SelectItem value="henrico">Henrico</SelectItem>
+                            <SelectItem value="chesterfield">Chesterfield</SelectItem>
+                            <SelectItem value="richmond">Richmond City</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {jurisdictionEntry.jurisdiction === 'other' && (
+                        <div className="flex flex-col">
+                          <Label htmlFor={`otherJurisdiction-${index}`} className="text-base font-medium mb-2">
+                            Other Jurisdiction
+                          </Label>
+                          <Input
+                            id={`otherJurisdiction-${index}`}
+                            value={jurisdictionEntry.otherJurisdiction || ''}
+                            onChange={(e) => handleOtherJurisdictionChange(index, e.target.value)}
+                            required
+                            className="bg-white"
+                            placeholder="Please specify jurisdiction"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addJurisdiction}
+                  className="w-full"
+                >
+                  <PlusCircle className="h-5 w-5 mr-2" />
+                  Add Another Jurisdiction
+                </Button>
               </div>
             )}
           </div>

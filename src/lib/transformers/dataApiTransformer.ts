@@ -1,205 +1,195 @@
-interface AuthorizedPerson {
-  firstName: string;
-  lastName: string;
-  relationship: string;
-  phone: string;
-}
-
-interface HealthStatus {
-  pregnant: boolean;
-  developmentallyDisabled: boolean;
-  coOccurringDisorder: boolean;
-  docSupervision: boolean;
-  felon: boolean;
-  physicallyHandicapped: boolean;
-  postPartum: boolean;
-  primaryFemaleCaregiver: boolean;
-  recentlyIncarcerated: boolean;
-  sexOffender: boolean;
-  lgbtq: boolean;
-  veteran: boolean;
-  insulinDependent: boolean;
-  historyOfSeizures: boolean;
-  others: string[];
-  // New demographics fields
-  race?: string;
-  ethnicity?: string;
-  householdIncome?: string;
-  employmentStatus?: string;
-}
-
-interface FormData {
-  firstName: string;
-  lastName: string;
-  intakeDate: string;
-  housingLocation: string;
-  dateOfBirth: string;
-  socialSecurityNumber: string;
-  sex: string;
-  email: string;
-  driversLicenseNumber: string;
-  vehicleTagNumber: string;
-  vehicleMake: string;
-  vehicleModel: string;
-  insured: boolean;
-  insuranceType: string;
-  policyNumber: string;
-  emergencyContactFirstName: string;
-  emergencyContactLastName: string;
-  emergencyContactPhone: string;
-  emergencyContactRelationship: string;
-  otherRelationship?: string;
-  dualDiagnosis: boolean;
-  mat: boolean;
-  matMedication: string;
-  matMedicationOther?: string;
-  needPsychMedication: boolean;
-  medications: string[];
-  hasProbationOrPretrial: boolean;
-  jurisdiction: string;
-  otherJurisdiction?: string;
-  consentSignature: string;
-  consentAgreed: boolean;
-  consentTimestamp: string;
-  witnessSignature: string;
-  witnessTimestamp: string;
-  signatureId: string;
-  medicationSignature: string;
-  medicationSignatureDate: string;
-  medicationWitnessSignature: string;
-  medicationWitnessTimestamp: string;
-  medicationSignatureId: string;
-  authorizedPeople: AuthorizedPerson[];
-  treatmentSignature?: string;
-  treatmentAgreed?: boolean;
-  treatmentTimestamp?: string;
-  treatmentwitnessSignature?: string;
-  treatmentwitnessTimestamp?: string;
-  treatmentsignatureId?: string;
-  priceConsentSignature?: string;
-  priceConsentAgreed?: boolean;
-  priceConsentTimestamp?: string;
-  priceWitnessSignature?: string;
-  priceWitnessTimestamp?: string;
-  priceSignatureId?: string;
-  healthStatus: HealthStatus;
-}
-
-interface ApiResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    name: string;
-    intake_date: string;
-    participant_id?: string;
-  };
-}
+import { FormData, SignatureType, Signature } from '@/types'; 
 
 export class DataApiTransformer {
-  private static validatePayload(payload: any): void {
-    if (!payload.firstName || !payload.lastName) {
+  private static validatePersonalInfo(data: any) {
+    if (!data.firstName?.trim() || !data.lastName?.trim()) {
       throw new Error('First name and last name are required');
     }
-
-    if (!payload.email || !payload.email.includes('@')) {
+    if (!data.email?.includes('@')) {
       throw new Error('Valid email is required');
     }
-
-    if (payload.authorizedPeople?.length > 0) {
-      payload.authorizedPeople.forEach((person: AuthorizedPerson, index: number) => {
-        if (!person.firstName || !person.lastName || !person.relationship || !person.phone) {
-          throw new Error(`Incomplete information for authorized person at position ${index + 1}`);
-        }
-      });
+    if (!data.socialSecurityNumber?.match(/^\d{3}-\d{2}-\d{4}$/)) {
+      throw new Error('Valid Social Security Number is required');
+    }
+    if (!data.dateOfBirth || !data.intakeDate) {
+      throw new Error('Date of birth and intake date are required');
     }
   }
 
-  static async createParticipantRecord(formData: FormData) {
+  private static validateAuthorizedPeople(people: any[]) {
+    if (!Array.isArray(people)) return;
+    
+    people.forEach((person, index) => {
+      if (!person.firstName?.trim() || !person.lastName?.trim() || 
+          !person.relationship?.trim() || !person.phone?.trim()) {
+        throw new Error(`Incomplete information for authorized person at position ${index + 1}`);
+      }
+    });
+  }
+
+  private static validateSignatures(data: FormData) {
+    const requiredSignatures: SignatureType[] = [
+      'treatment',
+      'price_consent',
+      'medication',
+      'critical_rules',
+      'house_rules',
+      'ethics',
+      'criminal_history'
+    ];
+  
+    if (!Array.isArray(data.signatures)) {
+      throw new Error('Signatures array is required');
+    }
+  
+    requiredSignatures.forEach(type => {
+      const signature = data.signatures.find(s => s.signatureType === type);
+      if (!signature || !signature.signature || !signature.signatureTimestamp || !signature.signatureId) {
+        throw new Error(`Missing required signature information for ${type}`);
+      }
+    });
+  }
+
+  private static transformPersonalInfo(formData: any) {
+    return {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      intakeDate: formData.intakeDate,
+      housingLocation: formData.housingLocation.toLowerCase(),
+      dateOfBirth: formData.dateOfBirth,
+      socialSecurityNumber: formData.socialSecurityNumber,
+      sex: formData.sex.toLowerCase(),
+      email: formData.email.toLowerCase().trim(),
+      driversLicenseNumber: formData.driversLicenseNumber?.trim() || ''
+    };
+  }
+
+  private static transformVehicleInfo(formData: any) {
+    return {
+      vehicleTagNumber: formData.vehicleTagNumber || '',
+      vehicleMake: formData.vehicleMake || '',
+      vehicleModel: formData.vehicleModel || '',
+      insured: Boolean(formData.insured),
+      insuranceType: formData.insuranceType || '',
+      policyNumber: formData.policyNumber || ''
+    };
+  }
+
+  private static transformMedicalInfo(formData: any) {
+    return {
+      dualDiagnosis: Boolean(formData.dualDiagnosis),
+      mat: Boolean(formData.mat),
+      matMedication: formData.matMedication || '',
+      matMedicationOther: formData.matMedicationOther || '',
+      needPsychMedication: Boolean(formData.needPsychMedication),
+      medications: Array.isArray(formData.medications) ? formData.medications : []
+    };
+  }
+
+  private static transformLegalInfo(formData: any) {
+    return {
+      hasProbationOrPretrial: Boolean(formData.hasProbationOrPretrial),
+      jurisdiction: formData.jurisdiction || '',
+      otherJurisdiction: formData.otherJurisdiction || '',
+      hasPendingCharges: Boolean(formData.hasPendingCharges),
+      pendingCharges: formData.pendingCharges || [],
+      hasConvictions: Boolean(formData.hasConvictions),
+      convictions: formData.convictions || [],
+      isWanted: Boolean(formData.isWanted),
+      isOnBond: Boolean(formData.isOnBond),
+      bondsmanName: formData.bondsmanName || '',
+      isSexOffender: Boolean(formData.isSexOffender)
+    };
+  }
+
+  private static transformHealthStatus(healthStatus: any) {
+    return {
+      pregnant: Boolean(healthStatus.pregnant),
+      developmentallyDisabled: Boolean(healthStatus.developmentallyDisabled),
+      coOccurringDisorder: Boolean(healthStatus.coOccurringDisorder),
+      docSupervision: Boolean(healthStatus.docSupervision),
+      felon: Boolean(healthStatus.felon),
+      physicallyHandicapped: Boolean(healthStatus.physicallyHandicapped),
+      postPartum: Boolean(healthStatus.postPartum),
+      primaryFemaleCaregiver: Boolean(healthStatus.primaryFemaleCaregiver),
+      recentlyIncarcerated: Boolean(healthStatus.recentlyIncarcerated),
+      sexOffender: Boolean(healthStatus.sexOffender),
+      lgbtq: Boolean(healthStatus.lgbtq),
+      veteran: Boolean(healthStatus.veteran),
+      insulinDependent: Boolean(healthStatus.insulinDependent),
+      historyOfSeizures: Boolean(healthStatus.historyOfSeizures),
+      others: Array.isArray(healthStatus.others) ? healthStatus.others : [],
+      race: healthStatus.race || '',
+      ethnicity: healthStatus.ethnicity || '',
+      householdIncome: healthStatus.householdIncome || '',
+      employmentStatus: healthStatus.employmentStatus || ''
+    };
+  }
+
+  private static transformSignatures(formData: any) {
+    const signatures: any = {};
+    const signatureTypes = [
+      'treatment',
+      'priceConsent',
+      'medication',
+      'criticalRules',
+      'houseRules',
+      'ethics',
+      'criminalHistory'
+    ];
+
+    signatureTypes.forEach(type => {
+      signatures[`${type}Signature`] = formData[`${type}Signature`];
+      signatures[`${type}SignatureTimestamp`] = formData[`${type}SignatureTimestamp`];
+      signatures[`${type}SignatureId`] = formData[`${type}SignatureId`];
+      signatures[`${type}WitnessSignature`] = formData[`${type}WitnessSignature`] || '';
+      signatures[`${type}WitnessTimestamp`] = formData[`${type}WitnessTimestamp`] || '';
+      signatures[`${type}WitnessSignatureId`] = formData[`${type}WitnessSignatureId`] || '';
+      if (type !== 'medication') { // Medication doesn't have an 'agreed' field
+        signatures[`${type}Agreed`] = Boolean(formData[`${type}Agreed`]);
+      }
+    });
+
+    return signatures;
+  }
+
+  static async createParticipantRecord(formData: any) {
     try {
+      // Validate critical data
+      this.validatePersonalInfo(formData);
+      this.validateAuthorizedPeople(formData.authorizedPeople);
+      this.validateSignatures(formData);
+
+      // Transform all data sections
       const submitPayload = {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        intakeDate: formData.intakeDate,
-        housingLocation: formData.housingLocation.toLowerCase(),
-        dateOfBirth: formData.dateOfBirth,
-        sex: formData.sex.toLowerCase(),
-        email: formData.email.toLowerCase().trim(),
-        driversLicenseNumber: formData.driversLicenseNumber?.trim() || '',
-        socialSecurityNumber: formData.socialSecurityNumber,
-        vehicleTagNumber: formData.vehicleTagNumber || '',
-        vehicleMake: formData.vehicleMake || '',
-        vehicleModel: formData.vehicleModel || '',
-        insured: formData.insured,           
-        insuranceType: formData.insuranceType || '',
-        policyNumber: formData.policyNumber || '',
-        emergencyContactFirstName: formData.emergencyContactFirstName,
-        emergencyContactLastName: formData.emergencyContactLastName,
-        emergencyContactPhone: formData.emergencyContactPhone,
+        ...this.transformPersonalInfo(formData),
+        ...this.transformVehicleInfo(formData),
+        ...this.transformMedicalInfo(formData),
+        ...this.transformLegalInfo(formData),
+        ...this.transformSignatures(formData),
+
+        // Emergency Contact
+        emergencyContactFirstName: formData.emergencyContactFirstName.trim(),
+        emergencyContactLastName: formData.emergencyContactLastName.trim(),
+        emergencyContactPhone: formData.emergencyContactPhone.trim(),
         emergencyContactRelationship: formData.emergencyContactRelationship,
         otherRelationship: formData.otherRelationship || '',
-        dualDiagnosis: formData.dualDiagnosis,  
-        mat: formData.mat,                                      
-        matMedication: formData.matMedication || '',
-        matMedicationOther: formData.matMedicationOther || '',
-        needPsychMedication: formData.needPsychMedication,
-        medications: formData.medications || [],
-        hasProbationOrPretrial: formData.hasProbationOrPretrial,
-        jurisdiction: formData.jurisdiction || '',
-        otherJurisdiction: formData.otherJurisdiction || '',
-        consentSignature: formData.consentSignature,
-        consentAgreed: formData.consentAgreed,                
-        consentTimestamp: formData.consentTimestamp,
-        witnessSignature: formData.witnessSignature,
-        witnessTimestamp: formData.witnessTimestamp,
-        signatureId: formData.signatureId,
-        medicationSignature: formData.medicationSignature,
-        medicationSignatureDate: formData.medicationSignatureDate,
-        medicationWitnessSignature: formData.medicationWitnessSignature,
-        medicationWitnessTimestamp: formData.medicationWitnessTimestamp,
-        medicationSignatureId: formData.medicationSignatureId,
-        treatmentSignature: formData.treatmentSignature || '',
-        treatmentAgreed: formData.treatmentAgreed || false,
-        treatmentTimestamp: formData.treatmentTimestamp || '',
-        treatmentwitnessSignature: formData.treatmentwitnessSignature || '',
-        treatmentwitnessTimestamp: formData.treatmentwitnessTimestamp || '',
-        treatmentsignatureId: formData.treatmentsignatureId || '',
-        priceConsentSignature: formData.priceConsentSignature || '',
-        priceConsentAgreed: formData.priceConsentAgreed || false,
-        priceConsentTimestamp: formData.priceConsentTimestamp || '',
-        priceWitnessSignature: formData.priceWitnessSignature || '',
-        priceWitnessTimestamp: formData.priceWitnessTimestamp || '',
-        priceSignatureId: formData.priceSignatureId || '',
-        authorizedPeople: formData.authorizedPeople.map(person => ({
+
+        // Authorized People
+        authorizedPeople: (formData.authorizedPeople || []).map((person: any) => ({
           firstName: person.firstName.trim(),
           lastName: person.lastName.trim(),
           relationship: person.relationship.trim(),
           phone: person.phone.trim()
         })),
-        healthStatus: {
-          pregnant: Boolean(formData.healthStatus.pregnant),
-          developmentallyDisabled: Boolean(formData.healthStatus.developmentallyDisabled),
-          coOccurringDisorder: Boolean(formData.healthStatus.coOccurringDisorder),
-          docSupervision: Boolean(formData.healthStatus.docSupervision),
-          felon: Boolean(formData.healthStatus.felon),
-          physicallyHandicapped: Boolean(formData.healthStatus.physicallyHandicapped),
-          postPartum: Boolean(formData.healthStatus.postPartum),
-          primaryFemaleCaregiver: Boolean(formData.healthStatus.primaryFemaleCaregiver),
-          recentlyIncarcerated: Boolean(formData.healthStatus.recentlyIncarcerated),
-          sexOffender: Boolean(formData.healthStatus.sexOffender),
-          lgbtq: Boolean(formData.healthStatus.lgbtq),
-          veteran: Boolean(formData.healthStatus.veteran),
-          insulinDependent: Boolean(formData.healthStatus.insulinDependent),
-          historyOfSeizures: Boolean(formData.healthStatus.historyOfSeizures),
-          others: Array.isArray(formData.healthStatus.others) ? formData.healthStatus.others : [],
-          // New demographics fields
-          race: formData.healthStatus.race || '',
-          ethnicity: formData.healthStatus.ethnicity || '',
-          householdIncome: formData.healthStatus.householdIncome || '',
-          employmentStatus: formData.healthStatus.employmentStatus || ''
-        }
-      };
 
-      this.validatePayload(submitPayload);
+        // Health Status
+        healthStatus: this.transformHealthStatus(formData.healthStatus),
+
+        // Additional Agreements
+        mandatoryReportingAgreed: Boolean(formData.mandatoryReportingAgreed),
+        programInfoReviewed: Boolean(formData.programInfoReviewed)
+      };
 
       console.log('Submitting data to API:', {
         ...submitPayload,
@@ -208,7 +198,7 @@ export class DataApiTransformer {
 
       const response = await fetch('/api/submit', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -221,7 +211,7 @@ export class DataApiTransformer {
         throw new Error(`API request failed: ${errorText}`);
       }
 
-      const result: ApiResponse = await response.json();
+      const result = await response.json();
 
       if (!result.success) {
         throw new Error(result.message || 'Failed to submit participant data');

@@ -6,21 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FileCheck, ScrollText, DollarSign, Info } from "lucide-react";
-
-interface FormData {
-  priceConsentSignature?: string;
-  priceConsentAgreed?: boolean;
-  priceConsentTimestamp?: string;
-  priceWitnessSignature?: string;
-  priceWitnessTimestamp?: string;
-  priceSignatureId?: string;
-}
-
-interface PricingAgreementProps {
-  formData: FormData;
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string) => void;
-}
+import { OnboardingPageProps, Signature } from '@/types';
 
 const generateSignatureId = () => {
   const timestamp = Date.now();
@@ -42,12 +28,13 @@ const SubNote = ({ icon, text }: { icon: string; text: string }) => (
 );
 
 export default function PricingAgreement({
-  formData = {},
+  formData,
   handleInputChange,
   handleSelectChange,
-}: PricingAgreementProps) {
+}: OnboardingPageProps) {
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-  const [agreed, setAgreed] = useState(Boolean(formData.priceConsentAgreed));
+  const currentSignature = formData.signatures.find(s => s.signatureType === 'price_consent');
+  const [agreed, setAgreed] = useState(Boolean(currentSignature?.agreed));
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
@@ -62,24 +49,79 @@ export default function PricingAgreement({
 
   const handleCheckboxChange = (checked: boolean) => {
     setAgreed(checked);
-    handleSelectChange('priceConsentAgreed', checked.toString());
-    if (checked) {
-      const now = new Date();
-      const timestamp = now.toISOString();
-      const signatureId = generateSignatureId();
-      handleSelectChange('priceConsentTimestamp', timestamp);
-      handleSelectChange('priceSignatureId', signatureId);
-    }
+    
+    const existingSignature = formData.signatures.find(s => s.signatureType === 'price_consent');
+    const updatedSignature: Signature = {
+      signatureType: 'price_consent',
+      signature: existingSignature?.signature || '',
+      signatureTimestamp: existingSignature?.signatureTimestamp || '',
+      signatureId: existingSignature?.signatureId || '',
+      agreed: checked
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'price_consent'),
+      updatedSignature
+    ]);
   };
 
-  const handleWitnessSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleInputChange(e);
-    if (e.target.value) {
-      const now = new Date();
-      const timestamp = now.toISOString();
-      handleSelectChange('priceWitnessTimestamp', timestamp);
-    }
+  const handleSignatureChange = (signature: string) => {
+    const now = new Date();
+    const signatureId = generateSignatureId();
+    
+    const newSignature: Signature = {
+      signatureType: 'price_consent',
+      signature,
+      signatureTimestamp: now.toISOString(),
+      signatureId,
+      agreed: true,
+      witnessSignature: currentSignature?.witnessSignature,
+      witnessTimestamp: currentSignature?.witnessTimestamp
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'price_consent'),
+      newSignature
+    ]);
   };
+
+  const handleWitnessSignature = (witnessSignature: string) => {
+    if (!currentSignature) return;
+
+    const now = new Date();
+    const updatedSignature: Signature = {
+      ...currentSignature,
+      witnessSignature,
+      witnessTimestamp: now.toISOString()
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'price_consent'),
+      updatedSignature
+    ]);
+  };
+
+  const pricingItems = [
+    { label: "Administrative 'Processing' Rate", amount: "$200.00/intake" },
+    { label: "Daily Rate (only for prorated weeks)", amount: "$25.00/day" },
+    { label: "Weekly rate", amount: "$175.00/week" },
+    { label: "Drug Screens", amount: "$35.00/per test" },
+    { label: "Transportation labor rate①", amount: "$15.00/half hour" },
+    { label: "Afterhours Transportation Labor①", amount: "$20.00/half hour" },
+    { label: "Transportation rate per mile①", amount: "$1.50/mile" },
+    { label: "Sober Companion Labor per hour", amount: "$25.00/hr" },
+    { label: "Sober Companion Labor with vehicle①", amount: "$35.00/hr" },
+    { label: "Care Coordination with Peer", amount: "$40.00/hr" },
+    { label: "PRS Led Group", amount: "$30.00/hr" },
+    { label: "Staff Led Group", amount: "$40.00/hr" },
+    { label: "RECCAP/S.M.A.R.T. Goals", amount: "$40.00/hr" },
+    { label: "Intake Assessment", amount: "$40.00/hr" },
+    { label: "New Recovery Plan", amount: "$40.00/plan" },
+    { label: "Daily Transportation to Center", amount: "$25.00/day" },
+    { label: "Sobriety Coordination", amount: "$40.00/hr" },
+    { label: "Afterhours Staff Emergency Event②", amount: "$75.00/hr" },
+    { label: "Funds handling fee③", amount: "$10.00/transaction" }
+  ];
 
   return (
     <div className="space-y-8">
@@ -102,7 +144,7 @@ export default function PricingAgreement({
           >
             <div className="space-y-4">
               <p className="text-sm text-gray-800 leading-relaxed">
-                It is the policy of The Journey House Richmond, LLC (&quot;Journey House&quot;) that residents are not allowed to fall behind on their administrative fees, Programming fees or Bed fees. Administrative &quot;Processing&quot; fees & program fees are due at the time of admission and thenceforth recur. Bed Fees are due every Friday for the week in advance. Residents must fill out a Program Payment Form (which requires a confirmation signature from Executive staff) and an Intake Monitory Agreement Form.
+                It is the policy of The Journey House Richmond, LLC ("Journey House") that residents are not allowed to fall behind on their administrative fees, Programming fees or Bed fees. Administrative "Processing" fees & program fees are due at the time of admission and thenceforth recur. Bed Fees are due every Friday for the week in advance. Residents must fill out a Program Payment Form (which requires a confirmation signature from Executive staff) and an Intake Monitory Agreement Form.
               </p>
 
               <p className="text-sm text-gray-800 leading-relaxed">
@@ -116,86 +158,12 @@ export default function PricingAgreement({
               <h3 className="text-lg font-bold mt-6 mb-4">FEE SCHEDULE</h3>
               <div className="space-y-2">
                 <div className="grid grid-cols-1 gap-4 text-sm">
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Administrative &quot;Processing&quot; Rate</span>
-                    <PriceBox amount="$200.00/intake" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Daily Rate (only for prorated weeks)</span>
-                    <PriceBox amount="$25.00/day" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Weekly rate</span>
-                    <PriceBox amount="$175.00/week" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Monthly rate (must be paid in a single payment)</span>
-                    <PriceBox amount="$700.00/month" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Drug Screens</span>
-                    <PriceBox amount="$35.00/per test" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Transportation labor rate①</span>
-                    <PriceBox amount="$15.00/half hour" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Afterhours Transportation Labor①</span>
-                    <PriceBox amount="$20.00/half hour" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Transportation rate per mile①</span>
-                    <PriceBox amount="$1.50/mile" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Sober Companion Labor per hour</span>
-                    <PriceBox amount="$25.00/hr" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Sober Companion Labor with vehicle①</span>
-                    <PriceBox amount="$35.00/hr" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Care Coordination with Peer</span>
-                    <PriceBox amount="$40.00/hr" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">PRS Led Group</span>
-                    <PriceBox amount="$30.00/hr" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Staff Led Group</span>
-                    <PriceBox amount="$40.00/hr" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">RECCAP/S.M.A.R.T. Goals</span>
-                    <PriceBox amount="$40.00/hr" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Intake Assessment</span>
-                    <PriceBox amount="$40.00/hr" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">New Recovery Plan</span>
-                    <PriceBox amount="$40.00/plan" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Daily Transportation to Center</span>
-                    <PriceBox amount="$25.00/day" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Sobriety Coordination</span>
-                    <PriceBox amount="$40.00/hr" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Afterhours Staff Emergency Event②</span>
-                    <PriceBox amount="$75.00/hr" />
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                    <span className="text-gray-700">Funds handling fee③</span>
-                    <PriceBox amount="$10.00/transaction" />
-                  </div>
+                  {pricingItems.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                      <span className="text-gray-700">{item.label}</span>
+                      <PriceBox amount={item.amount} />
+                    </div>
+                  ))}
                 </div>
 
                 <div className="space-y-2 mt-6">
@@ -249,7 +217,7 @@ export default function PricingAgreement({
               htmlFor="priceConsentAgreed"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              I have read and understand Journey House&apos;s Fee Schedule and Payment Policy
+              I have read and understand Journey House's Fee Schedule and Payment Policy
             </label>
           </div>
         </CardContent>
@@ -257,81 +225,62 @@ export default function PricingAgreement({
 
       {/* Signature Section */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileCheck className="h-5 w-5 text-green-500" />
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-emerald-500" />
             Authorization & Signatures
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Resident Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="priceConsentSignature" className="text-base font-semibold block mb-2">
-                  Resident Signature
-                </Label>
-                <Input
-                  id="priceConsentSignature"
-                  name="priceConsentSignature"
-                  value={formData.priceConsentSignature || ''}
-                  onChange={handleInputChange}
-                  required
-                  disabled={!agreed}
-                  placeholder="Type your full legal name to sign"
-                  className="bg-white"
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  By typing your name above, you acknowledge that you have read, understand, and agree to Journey House&apos;s Fee Schedule and Payment Policy.
-                </p>
-                {formData.priceConsentTimestamp && (
-                  <div className="mt-3 text-sm text-gray-500">
-                    <p>Signed on: {new Date(formData.priceConsentTimestamp).toLocaleString()}</p>
-                    <p>Signature ID: {formData.priceSignatureId}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Witness Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="priceWitnessSignature" className="text-base font-semibold block mb-2">
-                  Witness Signature
-                </Label>
-                <Input
-                  id="priceWitnessSignature"
-                  name="priceWitnessSignature"
-                  value={formData.priceWitnessSignature || ''}
-                  onChange={handleWitnessSignature}
-                  required
-                  disabled={!formData.priceConsentSignature}
-                  placeholder="Witness full legal name"
-                  className="bg-white"
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  As a witness, your signature verifies that you observed the resident sign this document.
-                </p>
-                {formData.priceWitnessTimestamp && (
-                  <p className="mt-3 text-sm text-gray-500">
-                    Witnessed on: {new Date(formData.priceWitnessTimestamp).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center space-y-2">
-            <Separator className="my-4" />
-            <p className="text-sm text-gray-500">
-              This digital signature agreement is legally binding and includes a timestamp record of both signatures.
-            </p>
-            {formData.priceSignatureId && (
-              <p className="text-sm font-medium">
-                Document Reference Number: {formData.priceSignatureId}
+        <CardContent className="p-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <Label htmlFor="priceConsentSignature">Resident Signature</Label>
+              <Input
+                id="priceConsentSignature"
+                value={currentSignature?.signature || ''}
+                onChange={(e) => handleSignatureChange(e.target.value)}
+                required
+                disabled={!agreed}
+                placeholder="Type your full legal name to sign"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                By typing your name above, you acknowledge that you have read, understand, and agree to Journey House's Fee Schedule and Payment Policy.
               </p>
-            )}
+              {currentSignature?.signatureTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Signed: {new Date(currentSignature.signatureTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <Label htmlFor="priceConsentWitnessSignature">Witness Signature</Label>
+              <Input
+                id="priceConsentWitnessSignature"
+                value={currentSignature?.witnessSignature || ''}
+                onChange={(e) => handleWitnessSignature(e.target.value)}
+                required
+                disabled={!currentSignature?.signature}
+                placeholder="Witness full legal name"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                As a witness, your signature verifies that you observed the resident sign this document.
+              </p>
+              {currentSignature?.witnessTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Witnessed: {new Date(currentSignature.witnessTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
           </div>
+
+          {currentSignature?.signatureId && (
+            <div className="mt-6 pt-6 border-t text-center">
+              <p className="text-sm text-gray-500">Document ID: {currentSignature.signatureId}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

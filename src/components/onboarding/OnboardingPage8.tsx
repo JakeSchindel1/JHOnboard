@@ -1,361 +1,275 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, ChangeEvent } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { 
-  Info, 
-  Building2, 
-  Activity, 
-  Shield, 
-  Hotel,
-  CheckCircle2,
-  FileCheck
-} from "lucide-react";
+import { Info, CheckCircle2, FileCheck, AlertTriangle } from "lucide-react";
+import { OnboardingPageProps, Signature } from '@/types';
 
-interface OnboardingPage8Props {
-  formData: {
-    treatmentSignature?: string;
-    treatmentAgreed?: boolean;
-    treatmentTimestamp?: string;
-    treatmentwitnessSignature?: string;
-    treatmentwitnessTimestamp?: string;
-    treatmentsignatureId?: string;
-  };
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string) => void;
-  setCurrentPage: (page: number | ((prev: number) => number)) => void;
-}
+const Alert: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = '' }) => (
+  <div className={`rounded-lg border p-4 ${className}`}>
+    {children}
+  </div>
+);
 
-const generateSignatureId = () => {
-  const timestamp = Date.now();
-  const randomString = Math.random().toString(36).substring(2, 15);
-  return `JH-${timestamp}-${randomString}`;
-};
+const AlertTitle: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = '' }) => (
+  <h3 className={`font-medium mb-2 ${className}`}>{children}</h3>
+);
+
+const AlertDescription: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = '' }) => (
+  <div className={`text-sm ${className}`}>{children}</div>
+);
+
+const generateSignatureId = () => `JH-TREAT-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
 export default function OnboardingPage8({
-  formData = {},
+  formData,
   handleInputChange,
   handleSelectChange,
-}: OnboardingPage8Props) {
+}: OnboardingPageProps) {
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-  const [hasReadContent, setHasReadContent] = useState(false);
+  const currentSignature = formData.signatures.find(s => s.signatureType === 'treatment');
+  const [hasReadContent, setHasReadContent] = useState(Boolean(currentSignature?.agreed));
+  const [mandatoryReportingAgreed, setMandatoryReportingAgreed] = useState(
+    Boolean(formData.signatures.find(s => s.signatureType === 'treatment')?.agreed)
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
-    const reachedBottom = Math.abs(
-      element.scrollHeight - element.clientHeight - element.scrollTop
-    ) < 1;
-    
-    if (reachedBottom) {
+    if (Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop) < 1) {
       setHasScrolledToBottom(true);
     }
   };
 
   const handleCheckboxChange = (checked: boolean) => {
     setHasReadContent(checked);
-    handleSelectChange('treatmentAgreed', checked.toString());
-    if (checked) {
-      const now = new Date();
-      const timestamp = now.toISOString();
-      const signatureId = generateSignatureId();
-      handleSelectChange('treatmentTimestamp', timestamp);
-      handleSelectChange('treatmentsignatureId', signatureId);
+    
+    const existingSignature = formData.signatures.find(s => s.signatureType === 'treatment');
+    const updatedSignature: Signature = {
+      signatureType: 'treatment',
+      signature: existingSignature?.signature || '',
+      signatureTimestamp: existingSignature?.signatureTimestamp || '',
+      signatureId: existingSignature?.signatureId || generateSignatureId(),
+      agreed: checked,
+      witnessSignature: existingSignature?.witnessSignature,
+      witnessTimestamp: existingSignature?.witnessTimestamp
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'treatment'),
+      updatedSignature
+    ]);
+  };
+
+  const handleMandatoryReportingChange = (checked: boolean) => {
+    setMandatoryReportingAgreed(checked);
+    
+    const existingSignature = formData.signatures.find(s => s.signatureType === 'treatment');
+    if (existingSignature) {
+      const updatedSignature: Signature = {
+        ...existingSignature,
+        agreed: checked && hasReadContent
+      };
+
+      handleSelectChange('signatures', [
+        ...formData.signatures.filter(s => s.signatureType !== 'treatment'),
+        updatedSignature
+      ]);
     }
   };
 
-  const handleWitnessSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleInputChange(e);
-    if (e.target.value) {
-      const now = new Date();
-      const timestamp = now.toISOString();
-      handleSelectChange('treatmentwitnessTimestamp', timestamp);
-    }
+  const handleSignatureChange = (signature: string) => {
+    const now = new Date();
+    const signatureId = generateSignatureId();
+    
+    const newSignature: Signature = {
+      signatureType: 'treatment',
+      signature,
+      signatureTimestamp: now.toISOString(),
+      signatureId,
+      agreed: true,
+      witnessSignature: currentSignature?.witnessSignature,
+      witnessTimestamp: currentSignature?.witnessTimestamp
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'treatment'),
+      newSignature
+    ]);
   };
 
-  const serviceTypes = {
-    intensive: {
-      icon: <Activity className="h-5 w-5 text-purple-500" />,
-      color: 'bg-purple-50',
-      borderColor: 'border-purple-200'
-    },
-    detox: {
-      icon: <Building2 className="h-5 w-5 text-blue-500" />,
-      color: 'bg-blue-50',
-      borderColor: 'border-blue-200'
-    },
-    medication: {
-      icon: <Shield className="h-5 w-5 text-green-500" />,
-      color: 'bg-green-50',
-      borderColor: 'border-green-200'
-    },
-    inpatient: {
-      icon: <Hotel className="h-5 w-5 text-red-500" />,
-      color: 'bg-red-50',
-      borderColor: 'border-red-200'
-    }
+  const handleWitnessSignature = (witnessSignature: string) => {
+    if (!currentSignature) return;
+
+    const now = new Date();
+    const updatedSignature: Signature = {
+      ...currentSignature,
+      witnessSignature,
+      witnessTimestamp: now.toISOString()
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'treatment'),
+      updatedSignature
+    ]);
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Mental Health and Treatment Services Options</h2>
-        <p className="text-sm text-gray-600">Available services and treatment options</p>
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold text-gray-900">Treatment Services</h1>
+        <p className="text-gray-600">Available mental health and recovery options</p>
       </div>
 
-      {/* Introduction and Scroll Area */}
+      <Alert className="bg-amber-50 border-amber-200">
+        <AlertTriangle className="h-5 w-5 text-amber-600" />
+        <AlertTitle className="text-amber-800">Mandatory Reporting Notice</AlertTitle>
+        <AlertDescription className="text-amber-700">
+          Journey House is a Third Party mandatory reporting agency for DOC supervision and courts
+        </AlertDescription>
+        <div className="mt-4 flex items-center gap-3">
+          <Checkbox
+            id="mandatoryReporting"
+            checked={mandatoryReportingAgreed}
+            onCheckedChange={handleMandatoryReportingChange}
+          />
+          <Label htmlFor="mandatoryReporting" className="text-sm text-amber-800">
+            I acknowledge that Journey House Foundation is required to report to:
+          </Label>
+        </div>
+        <ul className="ml-8 mt-2 list-disc text-sm text-amber-700">
+          <li>Judicial system representatives</li>
+          <li>Department of Corrections</li>
+        </ul>
+      </Alert>
+
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2">
             <Info className="h-5 w-5 text-blue-500" />
             Important Information
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <ScrollArea 
-            ref={scrollRef} 
-            className="h-64 w-full rounded-md border p-4"
+            ref={scrollRef}
+            className="h-64 p-6"
             onScrollCapture={handleScroll}
           >
-            <div className="space-y-4">
-              <p className="text-sm text-gray-800 leading-relaxed">
-                Here at Journey House Foundation, we believe firmly that the foundation of recovery involves receiving recovery support services, mental health services, and healthy community engagement. These key components build the foundation for long-term recovery and the skills or resources needed throughout life. The mental health services or treatment options for participants are dealing with acute and chronic mental health symptoms of addiction.
+            <div className="space-y-4 text-sm text-gray-700 leading-relaxed">
+              <p>
+                Here at Journey House Foundation, we believe firmly that the foundation of recovery involves receiving recovery support services, mental health services, and healthy community engagement. These key components build the foundation for long-term recovery and the skills or resources needed throughout life.
               </p>
-
-              <p className="text-sm text-gray-800 leading-relaxed">
+              <p>
                 As a new participant in our program, we will assist you by providing referrals to an extensive list of licensed providers and treatment centers in the Richmond metro area that may serve as an option for your unique care needs. In the event that you are experiencing transportation barriers, we will assist with referrals for transportation until alternative transportation options are available.
               </p>
-
-              <p className="text-sm text-gray-800 leading-relaxed">
-                Below is a list of reputable and commonly used providers and treatment centers, most of which are located in the Richmond metro area and conveniently a distance of five miles or less from our recovery center. While you have the option to self-select your preferred provider, please note that your ability to qualify is dependent on your insurance. Journey House staff members and your peer navigators are here to assist you with scheduling appointments and ensuring that they are documented on our participant calendar.
+              <p>
+                Most providers are located within five miles of our recovery center. While you can self-select your preferred provider, qualification depends on your insurance coverage. Our staff and peer navigators will help you schedule appointments and maintain your participant calendar.
               </p>
             </div>
           </ScrollArea>
-
-          <div className="flex items-center space-x-2 border-t pt-4 mt-4">
-            <Checkbox
-              id="hasReadContent"
-              checked={hasReadContent}
-              onCheckedChange={handleCheckboxChange}
-              disabled={!hasScrolledToBottom}
-            />
-            <label
-              htmlFor="hasReadContent"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              I have read and understand the treatment services information
-            </label>
+          
+          <div className="p-4 border-t bg-gray-50">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="agreement"
+                checked={hasReadContent}
+                onCheckedChange={handleCheckboxChange}
+                disabled={!hasScrolledToBottom}
+              />
+              <Label htmlFor="agreement" className="text-sm text-gray-700">
+                I have read and understand the treatment services information
+              </Label>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Services Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Intensive Outpatient Treatment Card */}
-        <Card className={`${serviceTypes.intensive.color} border ${serviceTypes.intensive.borderColor} transition-transform hover:scale-[1.02]`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              {serviceTypes.intensive.icon}
-              Intensive Outpatient Treatment
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="text-sm text-gray-800 space-y-2">
-              {[
-                "Henrico County Mental Health",
-                "River City Integrative Counseling",
-                "Master Center",
-                "Motivate Clinic",
-                "Dominion Family and Youth Service",
-              ].map((service, index) => (
-                <li key={index} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-purple-500" />
-                  {service}
-                </li>
-              ))}
-              <li className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-purple-500" />
-                  Journey House Behavioral Health
-                </div>
-                <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
-                  Coming Soon!
-                </span>
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-
-        {/* Detox Services Card */}
-        <Card className={`${serviceTypes.detox.color} border ${serviceTypes.detox.borderColor} transition-transform hover:scale-[1.02]`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              {serviceTypes.detox.icon}
-              Detox Services
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="text-sm text-gray-800 space-y-2">
-              {[
-                "Tucker Pavilion",
-                "Henrico County Mental Health (Parham)",
-                "Master Center (outpatient)",
-                "Pyramid Treatment Facility"
-              ].map((service, index) => (
-                <li key={index} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-blue-500" />
-                  {service}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        {/* Medication Assisted Treatment Card */}
-        <Card className={`${serviceTypes.medication.color} border ${serviceTypes.medication.borderColor} transition-transform hover:scale-[1.02]`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              {serviceTypes.medication.icon}
-              Medication Assisted Treatment
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="text-sm text-gray-800 space-y-2">
-              {[
-                "Henrico County Mental Health",
-                "Merchant Logo",
-                "Verity Psychiatry",
-                "Master Center",
-                "Motivate Clinic",
-                "Dominion Youth and Family Services"
-              ].map((service, index) => (
-                <li key={index} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  {service}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        {/* Inpatient Treatment Options Card */}
-        <Card className={`${serviceTypes.inpatient.color} border ${serviceTypes.inpatient.borderColor} transition-transform hover:scale-[1.02]`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              {serviceTypes.inpatient.icon}
-              Inpatient Treatment Options
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="text-sm text-gray-800 space-y-2">
-              {[
-                "Life Center of Galax",
-                "Pyramid treatment Center",
-                "Wilmington Treatment Center",
-                "Mount Regis Treatment Centers",
-                "River City Residential Service",
-                "Pinnacle Treatment Centers, Inc."
-              ].map((service, index) => (
-                <li key={index} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-red-500" />
-                  {service}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Footer Note */}
       <Card>
-        <CardContent className="pt-6">
-          <p className="text-sm text-gray-800 leading-relaxed">
+        <CardHeader>
+          <CardTitle>Potential Treatment Options</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <ul className="space-y-2">
+            {["Journey House Behavioral Health RVA", "Master Center for Addiction and Medicine", "Henrico Mental Health"].map((provider, index) => (
+              <li key={index} className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                <span className="text-gray-800">{provider}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-gray-900 font-bold">
             Your choice of mental health or treatment option will be discussed and documented in your recovery plan and you will make a choice at that time.
           </p>
         </CardContent>
       </Card>
 
-      {/* Signature Section */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileCheck className="h-5 w-5 text-green-500" />
-            Authorization & Signatures
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-emerald-500" />
+            Authorization
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Resident Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="treatmentSignature" className="text-base font-semibold block mb-2">
-                  Resident Signature
-                </Label>
-                <Input
-                  id="treatmentSignature"
-                  name="treatmentSignature"
-                  value={formData.treatmentSignature || ''}
-                  onChange={handleInputChange}
-                  required
-                  disabled={!hasReadContent}
-                  placeholder="Type your full legal name to sign"
-                  className="bg-white"
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  By typing your name above, you acknowledge that you have read and understand the available treatment options.
-                </p>
-                {formData.treatmentTimestamp && (
-                  <div className="mt-3 text-sm text-gray-500">
-                    <p>Signed on: {new Date(formData.treatmentTimestamp).toLocaleString()}</p>
-                    <p>Signature ID: {formData.treatmentsignatureId}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Witness Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="treatmentwitnessSignature" className="text-base font-semibold block mb-2">
-                  Witness Signature
-                </Label>
-                <Input
-                  id="treatmentwitnessSignature"
-                  name="treatmentwitnessSignature"
-                  value={formData.treatmentwitnessSignature || ''}
-                  onChange={handleWitnessSignature}
-                  required
-                  disabled={!formData.treatmentSignature}
-                  placeholder="Witness full legal name"
-                  className="bg-white"
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  As a witness, your signature verifies that you observed the resident sign this document.
-                </p>
-                {formData.treatmentwitnessTimestamp && (
-                  <p className="mt-3 text-sm text-gray-500">
-                    Witnessed on: {new Date(formData.treatmentwitnessTimestamp).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center space-y-2">
-            <Separator className="my-4" />
-            <p className="text-sm text-gray-500">
-              This digital signature agreement is legally binding and includes a timestamp record of both signatures.
-            </p>
-            {formData.treatmentsignatureId && (
-              <p className="text-sm font-medium">
-                Document Reference Number: {formData.treatmentsignatureId}
+        <CardContent className="p-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <Label htmlFor="treatmentSignature">Resident Signature</Label>
+              <Input
+                id="treatmentSignature"
+                value={currentSignature?.signature || ''}
+                onChange={(e) => handleSignatureChange(e.target.value)}
+                disabled={!hasReadContent || !mandatoryReportingAgreed}
+                placeholder="Type your full legal name"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                By typing your name above, you acknowledge understanding Journey House's treatment policies, including consent for medical care, mandatory reporting requirements, and emergency procedures.
               </p>
-            )}
+              {currentSignature?.signatureTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Signed: {new Date(currentSignature.signatureTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <Label htmlFor="treatmentWitnessSignature">Witness Signature</Label>
+              <Input
+                id="treatmentWitnessSignature"
+                value={currentSignature?.witnessSignature || ''}
+                onChange={(e) => handleWitnessSignature(e.target.value)}
+                disabled={!currentSignature?.signature}
+                placeholder="Witness full legal name"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                As a witness, your signature verifies that you observed the resident sign this document.
+              </p>
+              {currentSignature?.witnessTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Witnessed: {new Date(currentSignature.witnessTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
           </div>
+
+          {currentSignature?.signatureId && (
+            <div className="mt-6 pt-6 border-t text-center">
+              <p className="text-sm text-gray-500">Document ID: {currentSignature.signatureId}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

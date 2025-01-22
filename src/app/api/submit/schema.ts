@@ -8,6 +8,15 @@ const AuthorizedPersonSchema = z.object({
   phone: z.string().min(10, 'Valid phone number is required')
 })
 
+const VehicleSchema = z.object({
+  make: z.string().optional(),
+  model: z.string().optional(),
+  tagNumber: z.string().optional(),
+  insured: z.boolean().optional(),
+  insuranceType: z.string().optional(),
+  policyNumber: z.string().optional()
+})
+
 const HealthStatusSchema = z.object({
   pregnant: z.boolean().optional().default(false),
   developmentallyDisabled: z.boolean().optional().default(false),
@@ -23,15 +32,57 @@ const HealthStatusSchema = z.object({
   veteran: z.boolean().optional().default(false),
   insulinDependent: z.boolean().optional().default(false),
   historyOfSeizures: z.boolean().optional().default(false),
-  others: z.array(z.string()).optional().default([]),
-  race: z.string().optional().default(''),
-  ethnicity: z.string().optional().default(''),
-  householdIncome: z.string().optional().default(''),
-  employmentStatus: z.string().optional().default('')
-});
+  race: z.string().min(1, 'Race is required'),
+  ethnicity: z.string().min(1, 'Ethnicity is required'),
+  householdIncome: z.string().min(1, 'Household income is required'),
+  employmentStatus: z.string().min(1, 'Employment status is required')
+})
+
+const MedicalInformationSchema = z.object({
+  dualDiagnosis: z.boolean(),
+  mat: z.boolean(),
+  matMedication: z.string().optional(),
+  matMedicationOther: z.string().optional(),
+  needPsychMedication: z.boolean()
+})
+
+const LegalStatusSchema = z.object({
+  hasProbationPretrial: z.boolean(),
+  jurisdiction: z.string().optional(),
+  otherJurisdiction: z.string().optional(),
+  hasPendingCharges: z.boolean(),
+  hasConvictions: z.boolean(),
+  isWanted: z.boolean(),
+  isOnBond: z.boolean(),
+  bondsmanName: z.string().optional(),
+  isSexOffender: z.boolean()
+})
+
+const SignatureSchema = z.object({
+  signatureType: z.enum([
+    'emergency',
+    'medication',
+    'disclosure',
+    'treatment',
+    'price_consent',
+    'tenant_rights',
+    'contract_terms',
+    'criminal_history',
+    'ethics',
+    'critical_rules',
+    'house_rules'
+  ]),
+  signature: z.string(),
+  signatureTimestamp: z.string().transform(str => new Date(str)),
+  signatureId: z.string(),
+  witnessSignature: z.string().optional(),
+  witnessTimestamp: z.string().optional().transform(str => str ? new Date(str) : null),
+  witnessSignatureId: z.string().optional(),
+  agreed: z.boolean().optional()
+})
 
 export const OnboardingSchema = z.object({
-  // Personal Information
+  // Base resident information
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   intakeDate: z.string().min(1, 'Intake date is required')
@@ -42,80 +93,42 @@ export const OnboardingSchema = z.object({
   socialSecurityNumber: z.string().min(1, 'SSN is required'),
   sex: z.string().min(1, 'Sex is required'),
   email: z.string().email('Valid email is required'),
-  
-  // Vehicle Information
-  driversLicenseNumber: z.string().optional().default(''),
-  vehicleTagNumber: z.string().optional().default(''),
-  vehicleMake: z.string().optional().default(''),
-  vehicleModel: z.string().optional().default(''),
-  insured: z.boolean(),
-  insuranceType: z.string().optional().default(''),
-  policyNumber: z.string().optional().default(''),
-  
-  // Emergency Contact
-  emergencyContactFirstName: z.string().min(1, 'Emergency contact first name is required'),
-  emergencyContactLastName: z.string().min(1, 'Emergency contact last name is required'),
-  emergencyContactPhone: z.string().min(10, 'Valid emergency contact phone is required'),
-  emergencyContactRelationship: z.string().min(1, 'Emergency contact relationship is required'),
-  otherRelationship: z.string().optional().default(''),
-  
-  // Medical Information
-  dualDiagnosis: z.boolean(),
-  mat: z.boolean(),
-  matMedication: z.string().optional().default(''),
-  matMedicationOther: z.string().optional().default(''),
-  needPsychMedication: z.boolean(),
-  medications: z.array(z.string()).default([]),
-  
-  // Health Status
-  healthStatus: HealthStatusSchema.default({}),
+  driversLicenseNumber: z.string().min(1, 'Driver\'s license number is required'),
 
-  // Legal Information
-  hasProbationOrPretrial: z.boolean(),
-  jurisdiction: z.string().optional().default(''),
-  otherJurisdiction: z.string().optional().default(''),
-  
-  // Consent Forms
-  consentSignature: z.string().min(1, 'Consent signature is required'),
-  consentAgreed: z.boolean(),
-  consentTimestamp: z.string()
-    .transform(str => new Date(str)),
-  witnessSignature: z.string(),
-  witnessTimestamp: z.string()
-    .transform(str => new Date(str)),
-  signatureId: z.string(),
-  
-  // Medication Forms
-  medicationSignature: z.string(),
-  medicationSignatureDate: z.string()
-    .transform(str => new Date(str)),
-  medicationWitnessSignature: z.string(),
-  medicationWitnessTimestamp: z.string()
-    .transform(str => new Date(str)),
-  medicationSignatureId: z.string(),
-  
+  // Health Status
+  healthStatus: HealthStatusSchema,
+
+  // Vehicle Information
+  vehicle: VehicleSchema.optional(),
+
+  // Emergency Contact
+  emergencyContact: z.object({
+    firstName: z.string().min(1, 'Emergency contact first name is required'),
+    lastName: z.string().min(1, 'Emergency contact last name is required'),
+    phone: z.string().min(10, 'Valid emergency contact phone is required'),
+    relationship: z.string().min(1, 'Emergency contact relationship is required'),
+    otherRelationship: z.string().optional()
+  }),
+
+  // Medical Information
+  medicalInformation: MedicalInformationSchema,
+  medications: z.array(z.string()),
+
   // Authorized People
-  authorizedPeople: z.array(AuthorizedPersonSchema).default([]),
-  
-  // Treatment Information
-  treatmentSignature: z.string().optional().default(''),
-  treatmentAgreed: z.boolean().optional().default(false),
-  treatmentTimestamp: z.string().optional()
-    .transform(str => str ? new Date(str) : null),
-  treatmentwitnessSignature: z.string().optional().default(''),
-  treatmentwitnessTimestamp: z.string().optional()
-    .transform(str => str ? new Date(str) : null),
-  treatmentsignatureId: z.string().optional().default(''),
-  
-  // Price Consent
-  priceConsentSignature: z.string().optional().default(''),
-  priceConsentAgreed: z.boolean().optional().default(false),
-  priceConsentTimestamp: z.string().optional()
-    .transform(str => str ? new Date(str) : null),
-  priceWitnessSignature: z.string().optional().default(''),
-  priceWitnessTimestamp: z.string().optional()
-    .transform(str => str ? new Date(str) : null),
-  priceSignatureId: z.string().optional().default('')
+  authorizedPeople: z.array(AuthorizedPersonSchema),
+
+  // Legal Status
+  legalStatus: LegalStatusSchema,
+  pendingCharges: z.array(z.object({
+    chargeDescription: z.string(),
+    location: z.string().optional()
+  })).optional(),
+  convictions: z.array(z.object({
+    offense: z.string()
+  })).optional(),
+
+  // Signatures
+  signatures: z.array(SignatureSchema)
 })
 
 // Export the type we can use in our components

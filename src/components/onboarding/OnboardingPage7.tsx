@@ -8,36 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { OnboardingPage7Props, AuthorizedPerson, Signature } from '@/types';
 
-interface AuthorizedPerson {
-  firstName: string;
-  lastName: string;
-  relationship: string;
-  phone: string;
-}
-
-interface FormData {
-  firstName?: string;
-  lastName?: string;
-  authorizedPeople?: AuthorizedPerson[];
-  disclosureSignature?: string;
-  disclosureSignatureDate?: string;
-  disclosureWitnessSignature?: string;
-  disclosureWitnessTimestamp?: string;
-  disclosureSignatureId?: string;
-  disclosureAgreed?: boolean;
-  disclosureAgreementTimestamp?: string;
-}
-
-interface OnboardingPage7Props {
-  formData: FormData;
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string) => void;
-  handleAuthorizedPeopleChange: (people: AuthorizedPerson[]) => void;
-}
+const generateSignatureId = () => `JH-DISC-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
 export default function OnboardingPage7({
-  formData = {},
+  formData,
   handleInputChange,
   handleSelectChange,
   handleAuthorizedPeopleChange,
@@ -46,7 +22,8 @@ export default function OnboardingPage7({
     formData.authorizedPeople || [{ firstName: '', lastName: '', relationship: '', phone: '' }]
   );
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-  const [hasAgreed, setHasAgreed] = useState(Boolean(formData.disclosureAgreed));
+  const currentSignature = formData.signatures.find(s => s.signatureType === 'disclosure');
+  const [hasAgreed, setHasAgreed] = useState(Boolean(currentSignature?.agreed));
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
@@ -95,6 +72,62 @@ export default function OnboardingPage7({
     handleAuthorizedPeopleChange(updatedPeople);
   };
 
+  const handleCheckboxChange = (checked: boolean) => {
+    setHasAgreed(checked);
+    
+    const existingSignature = formData.signatures.find(s => s.signatureType === 'disclosure');
+    const updatedSignature: Signature = {
+      signatureType: 'disclosure',
+      signature: existingSignature?.signature || '',
+      signatureTimestamp: existingSignature?.signatureTimestamp || '',
+      signatureId: existingSignature?.signatureId || '',
+      agreed: checked,
+      witnessSignature: existingSignature?.witnessSignature,
+      witnessTimestamp: existingSignature?.witnessTimestamp
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'disclosure'),
+      updatedSignature
+    ]);
+  };
+
+  const handleSignatureChange = (signature: string) => {
+    const now = new Date();
+    const signatureId = generateSignatureId();
+    
+    const newSignature: Signature = {
+      signatureType: 'disclosure',
+      signature,
+      signatureTimestamp: now.toISOString(),
+      signatureId,
+      agreed: true,
+      witnessSignature: currentSignature?.witnessSignature,
+      witnessTimestamp: currentSignature?.witnessTimestamp
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'disclosure'),
+      newSignature
+    ]);
+  };
+
+  const handleWitnessSignature = (witnessSignature: string) => {
+    if (!currentSignature) return;
+
+    const now = new Date();
+    const updatedSignature: Signature = {
+      ...currentSignature,
+      witnessSignature,
+      witnessTimestamp: now.toISOString()
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'disclosure'),
+      updatedSignature
+    ]);
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -105,7 +138,7 @@ export default function OnboardingPage7({
 
       {/* Disclosure Text Card */}
       <Card>
-        <CardHeader>
+      <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileText className="h-5 w-5 text-blue-500" />
             Authorization Statement
@@ -155,14 +188,7 @@ export default function OnboardingPage7({
             <Checkbox
               id="disclosureAgreement"
               checked={hasAgreed}
-              onCheckedChange={(checked: boolean) => {
-                setHasAgreed(checked);
-                handleSelectChange('disclosureAgreed', checked.toString());
-                if (checked) {
-                  const now = new Date();
-                  handleSelectChange('disclosureAgreementTimestamp', now.toISOString());
-                }
-              }}
+              onCheckedChange={handleCheckboxChange}
               disabled={!hasScrolledToBottom}
             />
             <label
@@ -182,7 +208,7 @@ export default function OnboardingPage7({
 
       {/* Authorized People Card */}
       <Card>
-        <CardHeader>
+      <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <UserPlus className="h-5 w-5 text-green-500" />
             Authorized People
@@ -294,99 +320,64 @@ export default function OnboardingPage7({
         </CardContent>
       </Card>
 
-      {/* Signature Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileCheck className="h-5 w-5 text-green-500" />
+        {/* Signature Section */}
+        <Card>
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-emerald-500" />
             Authorization & Signatures
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Resident Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="disclosureSignature" className="text-base font-semibold block mb-2">
-                  Resident Signature
-                </Label>
-                <Input
-                  id="disclosureSignature"
-                  name="disclosureSignature"
-                  value={formData.disclosureSignature || ''}
-                  onChange={(e) => {
-                    handleInputChange(e);
-                    if (e.target.name === 'disclosureSignature') {
-                      const now = new Date();
-                      const timestamp = now.toISOString();
-                      const signatureId = `JH-DISC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                      handleSelectChange('disclosureSignatureDate', timestamp);
-                      handleSelectChange('disclosureSignatureId', signatureId);
-                    }
-                  }}
-                  required
-                  placeholder="Type your full legal name to sign"
-                  className="bg-white"
-                  disabled={!hasAgreed}
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  By typing your name above, you confirm that you understand and agree to this disclosure authorization.
-                </p>
-                {formData.disclosureSignatureDate && (
-                  <div className="mt-3 text-sm text-gray-500">
-                    <p>Signed on: {new Date(formData.disclosureSignatureDate).toLocaleString()}</p>
-                    <p>Signature ID: {formData.disclosureSignatureId}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Witness Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="disclosureWitnessSignature" className="text-base font-semibold block mb-2">
-                  Witness Signature
-                </Label>
-                <Input
-                  id="disclosureWitnessSignature"
-                  name="disclosureWitnessSignature"
-                  value={formData.disclosureWitnessSignature || ''}
-                  onChange={(e) => {
-                    handleInputChange(e);
-                    if (e.target.name === 'disclosureWitnessSignature' && e.target.value) {
-                      const now = new Date();
-                      const timestamp = now.toISOString();
-                      handleSelectChange('disclosureWitnessTimestamp', timestamp);
-                    }
-                  }}
-                  required
-                  disabled={!formData.disclosureSignature || !hasAgreed}
-                  placeholder="Witness full legal name"
-                  className="bg-white"
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  As a witness, your signature verifies that you observed the resident sign this document.
-                </p>
-                {formData.disclosureWitnessTimestamp && (
-                  <p className="mt-3 text-sm text-gray-500">
-                    Witnessed on: {new Date(formData.disclosureWitnessTimestamp).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center space-y-2">
-            <Separator className="my-4" />
-            <p className="text-sm text-gray-500">
-              This digital signature agreement is legally binding and includes a timestamp record of both signatures.
-            </p>
-            {formData.disclosureSignatureId && (
-              <p className="text-sm font-medium">
-                Document Reference Number: {formData.disclosureSignatureId}
+        <CardContent className="p-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <Label htmlFor="disclosureSignature">Resident Signature</Label>
+              <Input
+                id="disclosureSignature"
+                value={currentSignature?.signature || ''}
+                onChange={(e) => handleSignatureChange(e.target.value)}
+                required
+                disabled={!hasAgreed}
+                placeholder="Type your full legal name to sign"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                By typing your name above, you acknowledge understanding and agreeing to authorize Journey House to disclose information to your authorized contacts and relevant parties.
               </p>
-            )}
+              {currentSignature?.signatureTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Signed: {new Date(currentSignature.signatureTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <Label htmlFor="disclosureWitnessSignature">Witness Signature</Label>
+              <Input
+                id="disclosureWitnessSignature"
+                value={currentSignature?.witnessSignature || ''}
+                onChange={(e) => handleWitnessSignature(e.target.value)}
+                required
+                disabled={!currentSignature?.signature || !hasAgreed}
+                placeholder="Witness full legal name"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                As a witness, your signature verifies that you observed the resident sign this document.
+              </p>
+              {currentSignature?.witnessTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Witnessed: {new Date(currentSignature.witnessTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
           </div>
+
+          {currentSignature?.signatureId && (
+            <div className="mt-6 pt-6 border-t text-center">
+              <p className="text-sm text-gray-500">Document ID: {currentSignature.signatureId}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

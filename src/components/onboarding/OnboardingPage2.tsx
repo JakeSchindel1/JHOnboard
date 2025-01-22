@@ -5,96 +5,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Eye, EyeOff, UserCircle, Car } from "lucide-react";
+import { OnboardingPage2Props, HealthStatus } from '@/types';
 
-interface HealthStatus {
-  pregnant: boolean;
-  developmentallyDisabled: boolean;
-  coOccurringDisorder: boolean;
-  docSupervision: boolean;
-  felon: boolean;
-  physicallyHandicapped: boolean;
-  postPartum: boolean;
-  primaryFemaleCaregiver: boolean;
-  recentlyIncarcerated: boolean;
-  sexOffender: boolean;
-  lgbtq: boolean;
-  veteran: boolean;
-  insulinDependent: boolean;
-  historyOfSeizures: boolean;
-  others: string[];
-  race?: string;
-  ethnicity?: string;
-  householdIncome?: string;
-  employmentStatus?: string;
-  [key: string]: boolean | string[] | string | undefined;
-}
-
-interface FormData {
-  socialSecurityNumber?: string;
-  sex?: string;
-  email?: string;
-  driversLicenseNumber?: string;
-  vehicleTagNumber?: string;
-  vehicleMake?: string;
-  vehicleModel?: string;
-  healthStatus: HealthStatus;
-}
-
-interface OnboardingPage2Props {
-  formData: FormData;
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string) => void;
-  handleVehicleToggle: (hasNoVehicle: boolean) => void;
-  handleHealthStatusChange?: (updates: Partial<FormData['healthStatus']>) => void;
-}
+const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-base font-medium">
+    {children} <span className="text-red-500">*</span>
+  </span>
+);
 
 export default function OnboardingPage2({
-  formData = { 
-    healthStatus: {
-      pregnant: false,
-      developmentallyDisabled: false,
-      coOccurringDisorder: false,
-      docSupervision: false,
-      felon: false,
-      physicallyHandicapped: false,
-      postPartum: false,
-      primaryFemaleCaregiver: false,
-      recentlyIncarcerated: false,
-      sexOffender: false,
-      lgbtq: false,
-      veteran: false,
-      insulinDependent: false,
-      historyOfSeizures: false,
-      others: [],
-      race: '',
-      ethnicity: '',
-      householdIncome: '',
-      employmentStatus: ''
-    }
-  },
+  formData,
   handleInputChange,
   handleSelectChange,
   handleVehicleToggle,
-  handleHealthStatusChange = () => {}
+  handleHealthStatusChange
 }: OnboardingPage2Props) {
   const [showSSN, setShowSSN] = useState(false);
   
-  // Derive noCar state from form data
-  const noCar = formData.vehicleMake === 'null' && 
-                formData.vehicleModel === 'null' && 
-                formData.vehicleTagNumber === 'null';
+  const noCar = !formData.vehicle || (
+    !formData.vehicle.make && 
+    !formData.vehicle.model && 
+    !formData.vehicle.tagNumber
+  );
 
-  const {
-    socialSecurityNumber = '',
-    sex = '',
-    email = '',
-    driversLicenseNumber = '',
-    vehicleTagNumber = '',
-    vehicleMake = '',
-    vehicleModel = ''
-  } = formData;
-
-  // Memoized handler for SSN formatting
   const handleSSNChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/[^\d]/g, '').slice(0, 9);
     
@@ -112,7 +45,6 @@ export default function OnboardingPage2({
     } as React.ChangeEvent<HTMLInputElement>);
   }, [handleInputChange]);
 
-  // Memoized handler for showing/hiding SSN
   const toggleSSNVisibility = useCallback(() => {
     setShowSSN(prev => !prev);
   }, []);
@@ -122,7 +54,7 @@ export default function OnboardingPage2({
       {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">PERSONAL DETAILS</h2>
-        <p className="text-sm text-gray-600">Please complete all required fields</p>
+        <p className="text-sm text-gray-600">Fields marked with <span className="text-red-500">*</span> are required</p>
       </div>
 
       {/* Identification Card */}
@@ -137,15 +69,15 @@ export default function OnboardingPage2({
           <div className="grid md:grid-cols-2 gap-6">
             {/* SSN */}
             <div className="space-y-2">
-              <Label htmlFor="socialSecurityNumber" className="text-base font-medium">
-                Social Security Number
+              <Label htmlFor="socialSecurityNumber">
+                <RequiredLabel>Social Security Number</RequiredLabel>
               </Label>
               <div className="relative">
                 <Input
                   id="socialSecurityNumber"
                   name="socialSecurityNumber"
                   type={showSSN ? "text" : "password"}
-                  value={socialSecurityNumber}
+                  value={formData.socialSecurityNumber}
                   onChange={handleSSNChange}
                   placeholder="XXX-XX-XXXX"
                   className="pr-10 bg-white"
@@ -170,10 +102,13 @@ export default function OnboardingPage2({
 
             {/* Sex */}
             <div className="space-y-2">
-              <Label htmlFor="sex" className="text-base font-medium">Sex</Label>
+              <Label htmlFor="sex">
+                <RequiredLabel>Sex</RequiredLabel>
+              </Label>
               <Select 
-                value={sex} 
+                value={formData.sex} 
                 onValueChange={(value) => handleSelectChange('sex', value)}
+                required
               >
                 <SelectTrigger id="sex" className="bg-white">
                   <SelectValue placeholder="Select sex" />
@@ -188,28 +123,30 @@ export default function OnboardingPage2({
 
             {/* Driver's License */}
             <div className="space-y-2">
-              <Label htmlFor="driversLicenseNumber" className="text-base font-medium">
-                Driver&apos;s License Number
+              <Label htmlFor="driversLicenseNumber">
+                <RequiredLabel>Driver's License Number</RequiredLabel>
               </Label>
               <Input
                 id="driversLicenseNumber"
                 name="driversLicenseNumber"
-                value={driversLicenseNumber}
+                value={formData.driversLicenseNumber}
                 onChange={handleInputChange}
                 className="bg-white"
                 required
               />
-              <p className="text-sm text-gray-500">Your current driver&apos;s license number</p>
+              <p className="text-sm text-gray-500">Your current driver's license number</p>
             </div>
 
             {/* Email */}
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-base font-medium">Email Address</Label>
+              <Label htmlFor="email">
+                <RequiredLabel>Email Address</RequiredLabel>
+              </Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                value={email}
+                value={formData.email}
                 onChange={handleInputChange}
                 className="bg-white"
                 required
@@ -255,13 +192,13 @@ export default function OnboardingPage2({
           <div className="grid md:grid-cols-3 gap-6">
             {/* Vehicle Make */}
             <div className="space-y-2">
-              <Label htmlFor="vehicleMake" className="text-base font-medium">
+              <Label htmlFor="vehicle.make" className="text-base font-medium">
                 Vehicle Make
               </Label>
               <Input
-                id="vehicleMake"
-                name="vehicleMake"
-                value={vehicleMake === 'null' ? '' : vehicleMake}
+                id="vehicle.make"
+                name="vehicle.make"
+                value={formData.vehicle?.make || ''}
                 onChange={handleInputChange}
                 className={`bg-white ${noCar ? 'opacity-50' : ''}`}
                 placeholder="e.g., Toyota"
@@ -272,13 +209,13 @@ export default function OnboardingPage2({
 
             {/* Vehicle Model */}
             <div className="space-y-2">
-              <Label htmlFor="vehicleModel" className="text-base font-medium">
+              <Label htmlFor="vehicle.model" className="text-base font-medium">
                 Vehicle Model
               </Label>
               <Input
-                id="vehicleModel"
-                name="vehicleModel"
-                value={vehicleModel === 'null' ? '' : vehicleModel}
+                id="vehicle.model"
+                name="vehicle.model"
+                value={formData.vehicle?.model || ''}
                 onChange={handleInputChange}
                 className={`bg-white ${noCar ? 'opacity-50' : ''}`}
                 placeholder="e.g., Camry"
@@ -289,19 +226,19 @@ export default function OnboardingPage2({
 
             {/* Vehicle Tag */}
             <div className="space-y-2">
-              <Label htmlFor="vehicleTagNumber" className="text-base font-medium">
+              <Label htmlFor="vehicle.tagNumber" className="text-base font-medium">
                 License Plate Number
               </Label>
               <Input
-                id="vehicleTagNumber"
-                name="vehicleTagNumber"
-                value={vehicleTagNumber === 'null' ? '' : vehicleTagNumber}
+                id="vehicle.tagNumber"
+                name="vehicle.tagNumber"
+                value={formData.vehicle?.tagNumber || ''}
                 onChange={handleInputChange}
                 className={`bg-white ${noCar ? 'opacity-50' : ''}`}
                 placeholder="e.g., ABC-1234"
                 disabled={noCar}
               />
-              <p className="text-sm text-gray-500">Your vehicle&apos;s license plate number</p>
+              <p className="text-sm text-gray-500">Your vehicle's license plate number</p>
             </div>
           </div>
         </CardContent>
@@ -319,49 +256,58 @@ export default function OnboardingPage2({
           <div className="grid md:grid-cols-2 gap-6">
             {/* Race */}
             <div className="space-y-2">
-              <Label htmlFor="race" className="text-base font-medium">Race</Label>
+              <Label htmlFor="race">
+                <RequiredLabel>Race</RequiredLabel>
+              </Label>
               <Select 
                 value={formData.healthStatus.race} 
                 onValueChange={(value) => handleHealthStatusChange({ race: value })}
+                required
               >
                 <SelectTrigger id="race" className="bg-white">
                   <SelectValue placeholder="Select race" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="american-indian">American Indian or Alaska Native</SelectItem>
+                  <SelectItem value="american-indian-alaska-native">American Indian or Alaska Native</SelectItem>
                   <SelectItem value="asian">Asian</SelectItem>
-                  <SelectItem value="black">Black or African American</SelectItem>
-                  <SelectItem value="pacific-islander">Native Hawaiian or Pacific Islander</SelectItem>
+                  <SelectItem value="black-african-american">Black or African American</SelectItem>
+                  <SelectItem value="native-hawaiian-pacific-islander">Native Hawaiian or Pacific Islander</SelectItem>
                   <SelectItem value="white">White</SelectItem>
-                  <SelectItem value="multiple">Multiple Races</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="multiple-races">Multiple Races</SelectItem>
+                  <SelectItem value="other-race">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Ethnicity */}
             <div className="space-y-2">
-              <Label htmlFor="ethnicity" className="text-base font-medium">Ethnicity</Label>
+              <Label htmlFor="ethnicity">
+                <RequiredLabel>Ethnicity</RequiredLabel>
+              </Label>
               <Select 
                 value={formData.healthStatus.ethnicity} 
                 onValueChange={(value) => handleHealthStatusChange({ ethnicity: value })}
+                required
               >
                 <SelectTrigger id="ethnicity" className="bg-white">
                   <SelectValue placeholder="Select ethnicity" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="hispanic">Hispanic or Latino</SelectItem>
-                  <SelectItem value="non-hispanic">Not Hispanic or Latino</SelectItem>
+                  <SelectItem value="hispanic-latino">Hispanic or Latino</SelectItem>
+                  <SelectItem value="not-hispanic-latino">Not Hispanic or Latino</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Household Income */}
             <div className="space-y-2">
-              <Label htmlFor="householdIncome" className="text-base font-medium">Household Income</Label>
+              <Label htmlFor="householdIncome">
+                <RequiredLabel>Household Income</RequiredLabel>
+              </Label>
               <Select 
                 value={formData.healthStatus.householdIncome} 
                 onValueChange={(value) => handleHealthStatusChange({ householdIncome: value })}
+                required
               >
                 <SelectTrigger id="householdIncome" className="bg-white">
                   <SelectValue placeholder="Select income range" />
@@ -379,10 +325,13 @@ export default function OnboardingPage2({
 
             {/* Employment Status */}
             <div className="space-y-2">
-              <Label htmlFor="employmentStatus" className="text-base font-medium">Employment Status</Label>
+              <Label htmlFor="employmentStatus">
+                <RequiredLabel>Employment Status</RequiredLabel>
+              </Label>
               <Select 
                 value={formData.healthStatus.employmentStatus} 
                 onValueChange={(value) => handleHealthStatusChange({ employmentStatus: value })}
+                required
               >
                 <SelectTrigger id="employmentStatus" className="bg-white">
                   <SelectValue placeholder="Select employment status" />
@@ -393,7 +342,7 @@ export default function OnboardingPage2({
                   <SelectItem value="unemployed">Unemployed</SelectItem>
                   <SelectItem value="retired">Retired</SelectItem>
                   <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="other-employment">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -424,11 +373,13 @@ export default function OnboardingPage2({
                   <input
                     type="checkbox"
                     id={id}
-                    checked={formData.healthStatus?.[id as keyof HealthStatus] as boolean || false}
+                    checked={formData.healthStatus[id as keyof HealthStatus] as boolean || false}
                     onChange={(e) => {
-                      handleHealthStatusChange({
-                        [id]: e.target.checked
-                      });
+                      if (handleHealthStatusChange) {
+                        handleHealthStatusChange({
+                          [id]: e.target.checked
+                        });
+                      }
                     }}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
@@ -437,66 +388,6 @@ export default function OnboardingPage2({
                   </Label>
                 </div>
               ))}
-            </div>
-
-            {/* Other Items */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-medium">Other</Label>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    const newOthers = [...(formData.healthStatus.others || []), ''];
-                    handleHealthStatusChange({ others: newOthers });
-                  }}
-                  className="text-sm"
-                >
-                  Add Another
-                </Button>
-              </div>
-              
-              <div className="space-y-2">
-                {(formData.healthStatus.others || []).map((item, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      value={item}
-                      onChange={(e) => {
-                        const newOthers = [...(formData.healthStatus.others || [])];
-                        newOthers[index] = e.target.value;
-                        handleHealthStatusChange({ others: newOthers });
-                      }}
-                      placeholder="Specify other condition or status"
-                      className="bg-white flex-1"
-                    />
-                    <Button 
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        const newOthers = [...(formData.healthStatus.others || [])];
-                        newOthers.splice(index, 1);
-                        handleHealthStatusChange({ others: newOthers });
-                      }}
-                      className="shrink-0"
-                    >
-                      ×
-                    </Button>
-                  </div>
-                ))}
-                {!(formData.healthStatus.others || []).length && (
-                  <Input
-                    placeholder="Specify other condition or status"
-                    className="bg-white"
-                    onChange={(e) => {
-                      handleHealthStatusChange({ 
-                        others: [e.target.value]
-                      });
-                    }}
-                  />
-                )}
-              </div>
             </div>
           </div>
         </CardContent>

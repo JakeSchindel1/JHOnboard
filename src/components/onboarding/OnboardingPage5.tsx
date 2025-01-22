@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -6,43 +6,38 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FileCheck, ScrollText } from "lucide-react";
+import { OnboardingPageProps, Signature } from '@/types';
 
-interface FormData {
-  consentSignature?: string;
-  consentAgreed?: boolean;
-  consentTimestamp?: string;
-  witnessSignature?: string;
-  witnessTimestamp?: string;
-  signatureId?: string;
-}
-
-interface OnboardingPage5Props {
-  formData: FormData;
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string) => void;
-  setCurrentPage: (page: number | ((prev: number) => number)) => void;
-}
-
-const generateSignatureId = () => {
-  const timestamp = Date.now();
-  const randomString = Math.random().toString(36).substring(2, 15);
-  return `JH-${timestamp}-${randomString}`;
-};
+const generateSignatureId = () => `JH-EMER-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
 export default function OnboardingPage5({
-  formData = {},
+  formData,
   handleInputChange,
   handleSelectChange,
-}: OnboardingPage5Props) {
+  setCurrentPage,
+}: OnboardingPageProps) {
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-  const [agreed, setAgreed] = useState(Boolean(formData.consentAgreed));
+  const currentSignature = formData.signatures.find(s => s.signatureType === 'emergency');
+  const [agreed, setAgreed] = useState(Boolean(currentSignature?.agreed));
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (element) {
+      const reachedBottom = Math.abs(
+        element.scrollHeight - element.clientHeight - element.scrollTop
+      ) <= 2;
+      if (reachedBottom) {
+        setHasScrolledToBottom(true);
+      }
+    }
+  }, []);
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
     const reachedBottom = Math.abs(
       element.scrollHeight - element.clientHeight - element.scrollTop
-    ) < 1;
+    ) <= 2;
     
     if (reachedBottom) {
       setHasScrolledToBottom(true);
@@ -51,34 +46,67 @@ export default function OnboardingPage5({
 
   const handleCheckboxChange = (checked: boolean) => {
     setAgreed(checked);
-    handleSelectChange('consentAgreed', checked.toString());
-    if (checked) {
-      const now = new Date();
-      const timestamp = now.toISOString();
-      const signatureId = generateSignatureId();
-      handleSelectChange('consentTimestamp', timestamp);
-      handleSelectChange('signatureId', signatureId);
-    }
+    
+    const existingSignature = formData.signatures.find(s => s.signatureType === 'emergency');
+    const updatedSignature: Signature = {
+      signatureType: 'emergency',
+      signature: existingSignature?.signature || '',
+      signatureTimestamp: existingSignature?.signatureTimestamp || '',
+      signatureId: existingSignature?.signatureId || generateSignatureId(),
+      agreed: checked,
+      witnessSignature: existingSignature?.witnessSignature,
+      witnessTimestamp: existingSignature?.witnessTimestamp
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'emergency'),
+      updatedSignature
+    ]);
   };
 
-  const handleWitnessSignature = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleInputChange(e);
-    if (e.target.value) {
-      const now = new Date();
-      const timestamp = now.toISOString();
-      handleSelectChange('witnessTimestamp', timestamp);
-    }
+  const handleSignatureChange = (signature: string) => {
+    const now = new Date();
+    const signatureId = generateSignatureId();
+    
+    const newSignature: Signature = {
+      signatureType: 'emergency',
+      signature,
+      signatureTimestamp: now.toISOString(),
+      signatureId,
+      agreed: true,
+      witnessSignature: currentSignature?.witnessSignature,
+      witnessTimestamp: currentSignature?.witnessTimestamp
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'emergency'),
+      newSignature
+    ]);
+  };
+
+  const handleWitnessSignature = (witnessSignature: string) => {
+    if (!currentSignature) return;
+
+    const now = new Date();
+    const updatedSignature: Signature = {
+      ...currentSignature,
+      witnessSignature,
+      witnessTimestamp: now.toISOString()
+    };
+
+    handleSelectChange('signatures', [
+      ...formData.signatures.filter(s => s.signatureType !== 'emergency'),
+      updatedSignature
+    ]);
   };
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">EMERGENCY ROOM & MEDICAL APPOINTMENTS POLICY</h2>
         <p className="text-sm text-gray-600">Please read carefully and complete all sections</p>
       </div>
 
-      {/* Policy Content Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -132,10 +160,9 @@ export default function OnboardingPage5({
               <p className="text-sm text-gray-800 leading-relaxed">
                 Journey House limits the use of certain over-the-counter medications and items that contain alcohol or other mood-altering substances. Residents of journey house cannot take over the counter medicine that contains alcohol or suit of doctrine residents cannot use products with alcohol in it like mouthwash cough syrup and containing alcohol not normally used or approved for the indigestion are approved if use for the intended purposes IE Cologne and Hairspray
               </p>
-            </div>
+              </div>
           </ScrollArea>
 
-          {/* Consent Checkbox */}
           <div className="flex items-center space-x-2 border-t pt-4 mt-4">
             <Checkbox
               id="consentAgreed"
@@ -155,81 +182,64 @@ export default function OnboardingPage5({
 
       {/* Signature Section */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileCheck className="h-5 w-5 text-green-500" />
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-emerald-500" />
             Authorization & Signatures
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Resident Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="consentSignature" className="text-base font-semibold block mb-2">
-                  Resident Signature
-                </Label>
-                <Input
-                  id="consentSignature"
-                  name="consentSignature"
-                  value={formData.consentSignature || ''}
-                  onChange={handleInputChange}
-                  required
-                  disabled={!agreed}
-                  placeholder="Type your full legal name to sign"
-                  className="bg-white"
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  By typing your name above, you acknowledge that you have read, understand, and agree to Journey House&apos;s Medical and Medication Policy.
-                </p>
-                {formData.consentTimestamp && (
-                  <div className="mt-3 text-sm text-gray-500">
-                    <p>Signed on: {new Date(formData.consentTimestamp).toLocaleString()}</p>
-                    <p>Signature ID: {formData.signatureId}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Witness Signature */}
-            <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <Label htmlFor="witnessSignature" className="text-base font-semibold block mb-2">
-                  Witness Signature
-                </Label>
-                <Input
-                  id="witnessSignature"
-                  name="witnessSignature"
-                  value={formData.witnessSignature || ''}
-                  onChange={handleWitnessSignature}
-                  required
-                  disabled={!formData.consentSignature}
-                  placeholder="Witness full legal name"
-                  className="bg-white"
-                />
-                <p className="text-sm text-gray-600 mt-2">
-                  As a witness, your signature verifies that you observed the resident sign this document.
-                </p>
-                {formData.witnessTimestamp && (
-                  <p className="mt-3 text-sm text-gray-500">
-                    Witnessed on: {new Date(formData.witnessTimestamp).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center space-y-2">
-            <Separator className="my-4" />
-            <p className="text-sm text-gray-500">
-              This digital signature agreement is legally binding and includes a timestamp record of both signatures.
-            </p>
-            {formData.signatureId && (
-              <p className="text-sm font-medium">
-                Document Reference Number: {formData.signatureId}
+        <CardContent className="p-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <Label htmlFor="emergencySignature">Resident Signature</Label>
+              <Input
+                id="emergencySignature"
+                value={currentSignature?.signature || ''}
+                onChange={(e) => handleSignatureChange(e.target.value)}
+                required
+                disabled={!agreed}
+                placeholder="Type your full legal name to sign"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                By typing your name above, you acknowledge understanding Journey House's emergency room and medical appointments policies.
               </p>
-            )}
+              {currentSignature?.signatureTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Signed: {new Date(currentSignature.signatureTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <Label htmlFor="emergencyWitnessSignature">Witness Signature</Label>
+              <Input
+                id="emergencyWitnessSignature"
+                value={currentSignature?.witnessSignature || ''}
+                onChange={(e) => handleWitnessSignature(e.target.value)}
+                required
+                disabled={!currentSignature?.signature}
+                placeholder="Witness full legal name"
+                className="bg-white"
+              />
+              <p className="text-sm text-gray-600">
+                As a witness, your signature verifies that you observed the resident sign this document.
+              </p>
+              {currentSignature?.witnessTimestamp && (
+                <p className="text-sm text-gray-500">
+                  Witnessed: {new Date(currentSignature.witnessTimestamp).toLocaleString()}
+                </p>
+              )}
+            </div>
           </div>
+
+          {currentSignature?.signatureId && (
+            <div className="mt-6 pt-6 border-t text-center">
+              <p className="text-sm text-gray-500">
+                Document ID: {currentSignature.signatureId}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -4,40 +4,25 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { UserCircle, Home } from "lucide-react";
+import { FormData, OnboardingPageProps } from '@/types';
 
-interface FormData {
-  firstName?: string;
-  lastName?: string;
-  intakeDate?: string;
-  housingLocation?: string;
-  dateOfBirth?: string;
-}
-
-interface OnboardingPage1Props {
-  formData: FormData;
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSelectChange: (name: string, value: string) => void;
-}
+const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-base font-medium">
+    {children} <span className="text-red-500">*</span>
+  </span>
+);
 
 export default function OnboardingPage1({
-  formData = {},
+  formData,
   handleInputChange,
   handleSelectChange
-}: OnboardingPage1Props) {
-  const {
-    firstName = '',
-    lastName = '',
-    intakeDate = new Date().toISOString().split('T')[0],
-    housingLocation = '',
-    dateOfBirth = ''
-  } = formData;
-
+}: OnboardingPageProps) {
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">RESIDENT INFORMATION</h2>
-        <p className="text-sm text-gray-600">Please complete all required fields</p>
+        <p className="text-sm text-gray-600">Fields marked with <span className="text-red-500">*</span> are required</p>
       </div>
 
       {/* Personal Information Card */}
@@ -52,13 +37,13 @@ export default function OnboardingPage1({
           <div className="grid md:grid-cols-2 gap-6">
             {/* First Name */}
             <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-base font-medium">
-                First Name
+              <Label htmlFor="firstName">
+                <RequiredLabel>First Name</RequiredLabel>
               </Label>
               <Input
                 id="firstName"
                 name="firstName"
-                value={firstName}
+                value={formData.firstName}
                 onChange={handleInputChange}
                 required
                 className="bg-white"
@@ -71,13 +56,13 @@ export default function OnboardingPage1({
 
             {/* Last Name */}
             <div className="space-y-2">
-              <Label htmlFor="lastName" className="text-base font-medium">
-                Last Name
+              <Label htmlFor="lastName">
+                <RequiredLabel>Last Name</RequiredLabel>
               </Label>
               <Input
                 id="lastName"
                 name="lastName"
-                value={lastName}
+                value={formData.lastName}
                 onChange={handleInputChange}
                 required
                 className="bg-white"
@@ -90,14 +75,14 @@ export default function OnboardingPage1({
 
             {/* Date of Birth */}
             <div className="space-y-2">
-              <Label htmlFor="dateOfBirth" className="text-base font-medium">
-                Date of Birth
+              <Label htmlFor="dateOfBirth">
+                <RequiredLabel>Date of Birth</RequiredLabel>
               </Label>
               <Input
                 id="dateOfBirth"
                 name="dateOfBirth"
                 type="date"
-                value={dateOfBirth}
+                value={formData.dateOfBirth}
                 onChange={handleInputChange}
                 required
                 className="bg-white"
@@ -122,14 +107,14 @@ export default function OnboardingPage1({
           <div className="grid md:grid-cols-2 gap-6">
             {/* Intake Date */}
             <div className="space-y-2">
-              <Label htmlFor="intakeDate" className="text-base font-medium">
-                Intake Date
+              <Label htmlFor="intakeDate">
+                <RequiredLabel>Intake Date</RequiredLabel>
               </Label>
               <Input
                 id="intakeDate"
                 name="intakeDate"
                 type="date"
-                value={intakeDate}
+                value={formData.intakeDate}
                 onChange={handleInputChange}
                 required
                 className="bg-white"
@@ -141,12 +126,13 @@ export default function OnboardingPage1({
 
             {/* Housing Location */}
             <div className="space-y-2">
-              <Label htmlFor="housingLocation" className="text-base font-medium">
-                Housing Location
+              <Label htmlFor="housingLocation">
+                <RequiredLabel>Housing Location</RequiredLabel>
               </Label>
               <Select 
-                value={housingLocation} 
+                value={formData.housingLocation} 
                 onValueChange={(value) => handleSelectChange('housingLocation', value)}
+                required
               >
                 <SelectTrigger id="housingLocation" className="bg-white">
                   <SelectValue placeholder="Select housing location" />
