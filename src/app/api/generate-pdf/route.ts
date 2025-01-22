@@ -2,14 +2,12 @@ import { NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 import { join } from 'path';
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<Response> {
   try {
     const data = await req.json();
-    
-    // Path to Python script relative to this file
     const scriptPath = join(process.cwd(), 'src/app/api/generate-pdf/generate.py');
     
-    return new Promise((resolve, reject) => {
+    return new Promise<Response>((resolve, reject) => {
       const process = spawn('python', [scriptPath, JSON.stringify(data)]);
       
       let pdfBuffer = Buffer.from([]);
@@ -20,7 +18,7 @@ export async function POST(req: Request) {
       
       process.on('close', (code) => {
         if (code !== 0) {
-          reject(new Error('PDF generation failed'));
+          reject(new NextResponse('PDF generation failed', { status: 500 }));
           return;
         }
         
@@ -33,6 +31,6 @@ export async function POST(req: Request) {
       });
     });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 });
+    return new NextResponse('Error generating PDF', { status: 500 });
   }
 }
