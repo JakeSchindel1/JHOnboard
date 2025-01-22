@@ -198,11 +198,11 @@ export class DataApiTransformer {
       // Transform all data sections
       const submitPayload = {
         ...this.transformPersonalInfo(formData),
-        ...this.transformVehicleInfo(formData),
-        ...this.transformMedicalInfo(formData),
-        ...this.transformLegalInfo(formData),
-        ...this.transformSignatures(formData),
-
+        vehicle: this.transformVehicleInfo(formData),
+        medicalInformation: this.transformMedicalInfo(formData),
+        legalStatus: this.transformLegalInfo(formData),
+        signatures: formData.signatures,
+      
         // Emergency Contact
         emergencyContact: {
           firstName: formData.emergencyContact.firstName.trim(),
