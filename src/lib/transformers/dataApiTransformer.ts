@@ -2,15 +2,24 @@ import { FormData, SignatureType, Signature } from '@/types';
 
 export class DataApiTransformer {
   private static validatePersonalInfo(data: any) {
-    if (!data.firstName?.trim() || !data.lastName?.trim()) {
+    // Check existence first
+    if (!data.firstName || !data.lastName) {
       throw new Error('First name and last name are required');
     }
+    
+    // Then check trimmed values
+    if (!data.firstName.trim() || !data.lastName.trim()) {
+      throw new Error('First name and last name cannot be empty');
+    }
+
     if (!data.email?.includes('@')) {
       throw new Error('Valid email is required');
     }
+    
     if (!data.socialSecurityNumber?.match(/^\d{3}-\d{2}-\d{4}$/)) {
       throw new Error('Valid Social Security Number is required');
     }
+    
     if (!data.dateOfBirth || !data.intakeDate) {
       throw new Error('Date of birth and intake date are required');
     }
@@ -20,9 +29,16 @@ export class DataApiTransformer {
     if (!Array.isArray(people)) return;
     
     people.forEach((person, index) => {
-      if (!person.firstName?.trim() || !person.lastName?.trim() || 
-          !person.relationship?.trim() || !person.phone?.trim()) {
-        throw new Error(`Incomplete information for authorized person at position ${index + 1}`);
+      // Check existence first
+      if (!person.firstName || !person.lastName || 
+          !person.relationship || !person.phone) {
+        throw new Error(`Missing information for authorized person at position ${index + 1}`);
+      }
+      
+      // Then check trimmed values
+      if (!person.firstName.trim() || !person.lastName.trim() || 
+          !person.relationship.trim() || !person.phone.trim()) {
+        throw new Error(`Empty values not allowed for authorized person at position ${index + 1}`);
       }
     });
   }
@@ -51,14 +67,19 @@ export class DataApiTransformer {
   }
 
   private static transformPersonalInfo(formData: any) {
+    // Check for existence before transforming
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+      throw new Error('Missing required personal information');
+    }
+
     return {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       intakeDate: formData.intakeDate,
-      housingLocation: formData.housingLocation.toLowerCase(),
+      housingLocation: formData.housingLocation?.toLowerCase() || '',
       dateOfBirth: formData.dateOfBirth,
       socialSecurityNumber: formData.socialSecurityNumber,
-      sex: formData.sex.toLowerCase(),
+      sex: formData.sex?.toLowerCase() || '',
       email: formData.email.toLowerCase().trim(),
       driversLicenseNumber: formData.driversLicenseNumber?.trim() || ''
     };
@@ -66,12 +87,12 @@ export class DataApiTransformer {
 
   private static transformVehicleInfo(formData: any) {
     return {
-      vehicleTagNumber: formData.vehicleTagNumber || '',
-      vehicleMake: formData.vehicleMake || '',
-      vehicleModel: formData.vehicleModel || '',
+      vehicleTagNumber: formData.vehicleTagNumber?.trim() || '',
+      vehicleMake: formData.vehicleMake?.trim() || '',
+      vehicleModel: formData.vehicleModel?.trim() || '',
       insured: Boolean(formData.insured),
-      insuranceType: formData.insuranceType || '',
-      policyNumber: formData.policyNumber || ''
+      insuranceType: formData.insuranceType?.trim() || '',
+      policyNumber: formData.policyNumber?.trim() || ''
     };
   }
 
@@ -79,30 +100,35 @@ export class DataApiTransformer {
     return {
       dualDiagnosis: Boolean(formData.dualDiagnosis),
       mat: Boolean(formData.mat),
-      matMedication: formData.matMedication || '',
-      matMedicationOther: formData.matMedicationOther || '',
+      matMedication: formData.matMedication?.trim() || '',
+      matMedicationOther: formData.matMedicationOther?.trim() || '',
       needPsychMedication: Boolean(formData.needPsychMedication),
-      medications: Array.isArray(formData.medications) ? formData.medications : []
+      medications: Array.isArray(formData.medications) ? 
+        formData.medications.map((med: string) => med?.trim()).filter(Boolean) : []
     };
   }
 
   private static transformLegalInfo(formData: any) {
     return {
       hasProbationOrPretrial: Boolean(formData.hasProbationOrPretrial),
-      jurisdiction: formData.jurisdiction || '',
-      otherJurisdiction: formData.otherJurisdiction || '',
+      jurisdiction: formData.jurisdiction?.trim() || '',
+      otherJurisdiction: formData.otherJurisdiction?.trim() || '',
       hasPendingCharges: Boolean(formData.hasPendingCharges),
-      pendingCharges: formData.pendingCharges || [],
+      pendingCharges: Array.isArray(formData.pendingCharges) ? formData.pendingCharges : [],
       hasConvictions: Boolean(formData.hasConvictions),
-      convictions: formData.convictions || [],
+      convictions: Array.isArray(formData.convictions) ? formData.convictions : [],
       isWanted: Boolean(formData.isWanted),
       isOnBond: Boolean(formData.isOnBond),
-      bondsmanName: formData.bondsmanName || '',
+      bondsmanName: formData.bondsmanName?.trim() || '',
       isSexOffender: Boolean(formData.isSexOffender)
     };
   }
 
   private static transformHealthStatus(healthStatus: any) {
+    if (!healthStatus) {
+      throw new Error('Health status information is required');
+    }
+
     return {
       pregnant: Boolean(healthStatus.pregnant),
       developmentallyDisabled: Boolean(healthStatus.developmentallyDisabled),
@@ -118,11 +144,12 @@ export class DataApiTransformer {
       veteran: Boolean(healthStatus.veteran),
       insulinDependent: Boolean(healthStatus.insulinDependent),
       historyOfSeizures: Boolean(healthStatus.historyOfSeizures),
-      others: Array.isArray(healthStatus.others) ? healthStatus.others : [],
-      race: healthStatus.race || '',
-      ethnicity: healthStatus.ethnicity || '',
-      householdIncome: healthStatus.householdIncome || '',
-      employmentStatus: healthStatus.employmentStatus || ''
+      others: Array.isArray(healthStatus.others) ? 
+        healthStatus.others.map((item: string) => item?.trim()).filter(Boolean) : [],
+      race: healthStatus.race?.trim() || '',
+      ethnicity: healthStatus.ethnicity?.trim() || '',
+      householdIncome: healthStatus.householdIncome?.trim() || '',
+      employmentStatus: healthStatus.employmentStatus?.trim() || ''
     };
   }
 
@@ -139,12 +166,12 @@ export class DataApiTransformer {
     ];
 
     signatureTypes.forEach(type => {
-      signatures[`${type}Signature`] = formData[`${type}Signature`];
-      signatures[`${type}SignatureTimestamp`] = formData[`${type}SignatureTimestamp`];
-      signatures[`${type}SignatureId`] = formData[`${type}SignatureId`];
-      signatures[`${type}WitnessSignature`] = formData[`${type}WitnessSignature`] || '';
+      signatures[`${type}Signature`] = formData[`${type}Signature`]?.trim() || '';
+      signatures[`${type}SignatureTimestamp`] = formData[`${type}SignatureTimestamp`] || '';
+      signatures[`${type}SignatureId`] = formData[`${type}SignatureId`]?.trim() || '';
+      signatures[`${type}WitnessSignature`] = formData[`${type}WitnessSignature`]?.trim() || '';
       signatures[`${type}WitnessTimestamp`] = formData[`${type}WitnessTimestamp`] || '';
-      signatures[`${type}WitnessSignatureId`] = formData[`${type}WitnessSignatureId`] || '';
+      signatures[`${type}WitnessSignatureId`] = formData[`${type}WitnessSignatureId`]?.trim() || '';
       if (type !== 'medication') { // Medication doesn't have an 'agreed' field
         signatures[`${type}Agreed`] = Boolean(formData[`${type}Agreed`]);
       }
@@ -160,6 +187,14 @@ export class DataApiTransformer {
       this.validateAuthorizedPeople(formData.authorizedPeople);
       this.validateSignatures(formData);
 
+      // Check emergency contact data before transformation
+      if (!formData.emergencyContactFirstName || 
+          !formData.emergencyContactLastName || 
+          !formData.emergencyContactPhone || 
+          !formData.emergencyContactRelationship) {
+        throw new Error('Missing required emergency contact information');
+      }
+
       // Transform all data sections
       const submitPayload = {
         ...this.transformPersonalInfo(formData),
@@ -172,8 +207,8 @@ export class DataApiTransformer {
         emergencyContactFirstName: formData.emergencyContactFirstName.trim(),
         emergencyContactLastName: formData.emergencyContactLastName.trim(),
         emergencyContactPhone: formData.emergencyContactPhone.trim(),
-        emergencyContactRelationship: formData.emergencyContactRelationship,
-        otherRelationship: formData.otherRelationship || '',
+        emergencyContactRelationship: formData.emergencyContactRelationship.trim(),
+        otherRelationship: formData.otherRelationship?.trim() || '',
 
         // Authorized People
         authorizedPeople: (formData.authorizedPeople || []).map((person: any) => ({
