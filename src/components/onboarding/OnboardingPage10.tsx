@@ -217,7 +217,7 @@ export default function ResidentContract({
                 </div>
 
                 <p className="text-sm text-gray-800">
-                  All policies and procedures outlined within this contract and any applicable subsequent amendments are in full force and effect during a resident's entire residency unless specifically defined within a subsection of this contract. Violation of any policy or procedure outlined in this contract and any applicable subsequent amendments will result in disciplinary actions including fines, fees, house probation/restriction, and possible expulsion.
+                  All policies and procedures outlined within this contract and any applicable subsequent amendments are in full force and effect during a resident&apos;s entire residency unless specifically defined within a subsection of this contract. Violation of any policy or procedure outlined in this contract and any applicable subsequent amendments will result in disciplinary actions including fines, fees, house probation/restriction, and possible expulsion.
                 </p>
 
                 <div className="space-y-6">
@@ -288,7 +288,7 @@ export default function ResidentContract({
                     <h3 className="text-lg font-bold">Employment Obligations</h3>
                     <ul className="list-decimal pl-5 space-y-2 text-sm text-gray-800">
                       <li>Residents seeking employment in an establishment that serves alcohol must receive approval by management.</li>
-                      <li>Resident's progress toward employment and recovery goals will be addressed at each house meeting.</li>
+                      <li>Resident&apos;s progress toward employment and recovery goals will be addressed at each house meeting.</li>
                       <li>Residents must supply an employment schedule to their house leaders and staff weekly.</li>
                     </ul>
                   </section>
