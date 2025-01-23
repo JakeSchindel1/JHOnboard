@@ -74,7 +74,7 @@ __pycache__/
 
 # IDE specific files
 .idea/
-.vscode/
+
 *.swp
 *.swo
 
@@ -102,3 +102,4 @@ local.settings.json
 /api/bin
 /api/obj
 /api/env
+.python_packages

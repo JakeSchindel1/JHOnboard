@@ -324,13 +324,24 @@ export default function OnboardingForm() {
     return errors;
   };
 
+  const FUNCTION_URL = process.env.NODE_ENV === 'development' 
+  ? 'http://localhost:7071/api/generatepdf'
+  : 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
+
   const downloadPDF = async (data: FormData) => {
     try {
-      const response = await fetch('/api/generate-pdf', {
+      const response = await fetch(FUNCTION_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(data)
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`PDF generation failed: ${errorText}`);
+      }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -346,7 +357,6 @@ export default function OnboardingForm() {
       toast.error('Failed to download PDF');
     }
   };
-  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
