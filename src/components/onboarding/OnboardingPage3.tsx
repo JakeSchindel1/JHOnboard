@@ -3,8 +3,84 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Shield, Contact } from "lucide-react";
-import { OnboardingPageProps } from '@/types';
+import { Button } from "@/components/ui/button";
+import { Shield, Contact, Plus, Trash2 } from "lucide-react";
+import { OnboardingPageProps, Insurance } from '@/types';
+
+const InsuranceEntry = ({
+  insurance,
+  onUpdate,
+  onRemove,
+  showRemove
+}: {
+  insurance: Insurance;
+  onUpdate: (updates: Partial<Insurance>) => void;
+  onRemove: () => void;
+  showRemove: boolean;
+}) => {
+  const handleInsuranceTypeChange = (value: string) => {
+    onUpdate({ 
+      insuranceType: value,
+      policyNumber: value === 'uninsured' ? '' : insurance.policyNumber 
+    });
+  };
+
+  return (
+    <div className="grid md:grid-cols-2 gap-6 relative border-b pb-6 last:border-b-0">
+      {/* Insurance Type */}
+      <div className="space-y-2">
+        <Label htmlFor="insuranceType" className="text-base font-medium">
+          Insurance Type
+        </Label>
+        <Select 
+          value={insurance.insuranceType || 'uninsured'}
+          onValueChange={handleInsuranceTypeChange}
+        >
+          <SelectTrigger id="insuranceType" className="bg-white">
+            <SelectValue placeholder="Select insurance type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="uninsured">No Insurance</SelectItem>
+            <SelectItem value="private">Private Insurance</SelectItem>
+            <SelectItem value="medicare">Medicare</SelectItem>
+            <SelectItem value="medicaid">Medicaid</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-sm text-gray-500">Type of health insurance coverage</p>
+      </div>
+
+      {/* Policy Number */}
+      {insurance.insuranceType && insurance.insuranceType !== 'uninsured' && (
+        <div className="space-y-2">
+          <Label htmlFor="policyNumber" className="text-base font-medium">
+            Policy Number
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              id="policyNumber"
+              value={insurance.policyNumber || ''}
+              onChange={(e) => onUpdate({ policyNumber: e.target.value })}
+              className="bg-white"
+              placeholder="Enter your policy number"
+            />
+            {showRemove && (
+              <Button 
+                type="button" 
+                variant="destructive" 
+                size="icon"
+                onClick={onRemove}
+                className="shrink-0"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">Your insurance policy number</p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function OnboardingPage3({
   formData,
@@ -18,6 +94,9 @@ export default function OnboardingPage3({
     relationship = '',
     otherRelationship = ''
   } = formData.emergencyContact || {};
+
+  // Initialize insurances array if it doesn't exist
+  const insurances = Array.isArray(formData.insurances) ? formData.insurances : [{ insuranceType: 'uninsured' }];
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
@@ -42,11 +121,19 @@ export default function OnboardingPage3({
     });
   };
 
-  const handleInsuranceTypeChange = (value: string) => {
-    handleSelectChange('insuranceType', value);
-    if (value === 'uninsured') {
-      handleSelectChange('policyNumber', '');
-    }
+  const updateInsurance = (index: number, updates: Partial<Insurance>) => {
+    const newInsurances = [...insurances];
+    newInsurances[index] = { ...newInsurances[index], ...updates };
+    handleSelectChange('insurances', newInsurances);
+  };
+
+  const addInsurance = () => {
+    handleSelectChange('insurances', [...insurances, { insuranceType: 'uninsured' }]);
+  };
+
+  const removeInsurance = (index: number) => {
+    const newInsurances = insurances.filter((_, i) => i !== index);
+    handleSelectChange('insurances', newInsurances);
   };
 
   return (
@@ -65,47 +152,24 @@ export default function OnboardingPage3({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Insurance Type */}
-            <div className="space-y-2">
-              <Label htmlFor="insuranceType" className="text-base font-medium">
-                Insurance Type
-              </Label>
-              <Select 
-                value={formData.insuranceType || 'uninsured'}
-                onValueChange={handleInsuranceTypeChange}
-              >
-                <SelectTrigger id="insuranceType" className="bg-white">
-                  <SelectValue placeholder="Select insurance type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="uninsured">No Insurance</SelectItem>
-                  <SelectItem value="private">Private Insurance</SelectItem>
-                  <SelectItem value="medicare">Medicare</SelectItem>
-                  <SelectItem value="medicaid">Medicaid</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-gray-500">Type of health insurance coverage</p>
-            </div>
-
-            {/* Policy Number */}
-            {formData.insuranceType && formData.insuranceType !== 'uninsured' && (
-              <div className="space-y-2">
-                <Label htmlFor="policyNumber" className="text-base font-medium">
-                  Policy Number
-                </Label>
-                <Input
-                  id="policyNumber"
-                  name="policyNumber"
-                  value={formData.policyNumber || ''}
-                  onChange={handleInputChange}
-                  className="bg-white"
-                  placeholder="Enter your policy number"
-                />
-                <p className="text-sm text-gray-500">Your insurance policy number</p>
-              </div>
-            )}
-          </div>
+          {insurances.map((insurance, index) => (
+            <InsuranceEntry
+              key={index}
+              insurance={insurance}
+              onUpdate={(updates) => updateInsurance(index, updates)}
+              onRemove={() => removeInsurance(index)}
+              showRemove={insurances.length > 1}
+            />
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addInsurance}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Another Insurance
+          </Button>
         </CardContent>
       </Card>
 

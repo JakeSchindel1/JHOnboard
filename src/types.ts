@@ -16,9 +16,12 @@ export interface PersonalInformation {
   socialSecurityNumber: string;
   sex: string;
   email: string;
-  driversLicenseNumber: string;
+  driversLicenseNumber?: string;
+}
+
+export interface Insurance {
   insuranceType: string;
-  policyNumber: string; 
+  policyNumber?: string;
 }
 
 export interface VehicleInformation {
@@ -26,7 +29,7 @@ export interface VehicleInformation {
   model?: string;
   tagNumber?: string;
   insured: boolean;
-  insuranceType?: string;
+  insurances: Insurance[];
   policyNumber?: string;
 }
 
@@ -134,6 +137,7 @@ export interface FormData extends PersonalInformation {
   pendingCharges?: PendingCharge[];
   convictions?: Conviction[];
   signatures: Signature[];
+  insurances: Insurance[];
 }
 
 // Event Handler Types
@@ -141,7 +145,7 @@ export type InputChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => voi
 
 export type SelectChangeHandler = (
   name: string, 
-  value: string | boolean | string[] | PendingCharge[] | Conviction[] | Signature[]
+  value: string | boolean | string[] | PendingCharge[] | Conviction[] | Signature[] | Insurance[]
 ) => void;
 
 export type VehicleToggleHandler = (hasVehicle: boolean) => void;
@@ -185,7 +189,6 @@ export const requiredFields: (keyof FormData)[] = [
   'socialSecurityNumber',
   'sex',
   'email',
-  'driversLicenseNumber',
   
   // Required Related Objects
   'healthStatus',

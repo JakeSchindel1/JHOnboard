@@ -42,7 +42,7 @@ import {
   requiredFields,
   requiredHealthStatusFields,
   requiredEmergencyContactFields,
-  SignatureType
+  SignatureType,
 } from '@/types';
 
 const initialFormState: FormData = {
@@ -56,8 +56,7 @@ const initialFormState: FormData = {
   sex: "",
   email: "",
   driversLicenseNumber: "",
-  insuranceType: "",
-  policyNumber: '',
+  insurances: [{ insuranceType: 'uninsured' }],
 
   // Health Status
   healthStatus: {
@@ -87,7 +86,7 @@ const initialFormState: FormData = {
     model: "",
     tagNumber: "",
     insured: false,
-    insuranceType: "",
+    insurances: [],
     policyNumber: ""
   },
 
@@ -212,7 +211,7 @@ export default function OnboardingForm() {
           if (newState.vehicle && typeof newState.vehicle === 'object') {
             newState.vehicle = {
               ...newState.vehicle,
-              insuranceType: "",
+              insurances: [],
               policyNumber: ""
             };
           }
@@ -244,7 +243,7 @@ export default function OnboardingForm() {
           model: "",
           tagNumber: "",
           insured: false,
-          insuranceType: "",
+          insurances: [],
           policyNumber: ""
         }
       }));
@@ -328,8 +327,14 @@ export default function OnboardingForm() {
   ? 'http://localhost:7071/api/generatepdf'
   : 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
 
-  const downloadPDF = async (data: FormData) => {
+  const downloadPDF = async (formData: FormData) => {
     try {
+      // Convert FormData to a plain object
+      const data: { [key: string]: any } = {};
+      for (const [key, value] of (formData as any).entries()) {
+        data[key] = value;
+      }
+
       const response = await fetch(FUNCTION_URL, {
         method: 'POST',
         headers: { 
@@ -337,13 +342,22 @@ export default function OnboardingForm() {
         },
         body: JSON.stringify(data)
       });
-      
+
+      // Handle non-OK responses
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`PDF generation failed: ${errorText}`);
       }
-      
+
+      // Handle the PDF blob
       const blob = await response.blob();
+
+      // Check if the blob is a valid PDF
+      if (blob.type !== 'application/pdf') {
+        throw new Error('Invalid PDF file received');
+      }
+
+      // Create a download link and trigger the download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -357,6 +371,8 @@ export default function OnboardingForm() {
       toast.error('Failed to download PDF');
     }
   };
+
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     

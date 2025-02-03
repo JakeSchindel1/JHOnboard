@@ -1,4 +1,4 @@
-import { FormData, SignatureType, Signature } from '@/types'; 
+import { FormData, SignatureType, Signature, Insurance } from '@/types';
 
 export class DataApiTransformer {
   private static validatePersonalInfo(data: any) {
@@ -23,6 +23,21 @@ export class DataApiTransformer {
     if (!data.dateOfBirth || !data.intakeDate) {
       throw new Error('Date of birth and intake date are required');
     }
+  }
+
+  private static validateInsurances(insurances: any[]) {
+    if (!Array.isArray(insurances) || insurances.length === 0) {
+      throw new Error('At least one insurance entry is required');
+    }
+
+    insurances.forEach((insurance, index) => {
+      if (!insurance.insuranceType) {
+        throw new Error(`Insurance type is required for insurance entry ${index + 1}`);
+      }
+      if (insurance.insuranceType !== 'uninsured' && !insurance.policyNumber?.trim()) {
+        throw new Error(`Policy number is required for insurance entry ${index + 1}`);
+      }
+    });
   }
 
   private static validateAuthorizedPeople(people: any[]) {
@@ -85,14 +100,23 @@ export class DataApiTransformer {
     };
   }
 
+  private static transformInsurances(formData: any) {
+    if (!Array.isArray(formData.insurances)) {
+      return [{ insuranceType: 'uninsured', policyNumber: '' }];
+    }
+
+    return formData.insurances.map((insurance: any) => ({
+      insuranceType: insurance.insuranceType?.trim() || 'uninsured',
+      policyNumber: insurance.policyNumber?.trim() || ''
+    }));
+  }
+
   private static transformVehicleInfo(formData: any) {
     return {
-      make: formData.vehicleMake?.trim() || '',
-      model: formData.vehicleModel?.trim() || '',
-      tagNumber: formData.vehicleTagNumber?.trim() || '',
-      insured: Boolean(formData.insured),
-      insuranceType: formData.insuranceType?.trim() || '',
-      policyNumber: formData.policyNumber?.trim() || ''
+      make: formData.vehicle?.make?.trim() || '',
+      model: formData.vehicle?.model?.trim() || '',
+      tagNumber: formData.vehicle?.tagNumber?.trim() || '',
+      insured: Boolean(formData.vehicle?.insured)
     };
   }
 
@@ -157,6 +181,7 @@ export class DataApiTransformer {
       this.validatePersonalInfo(formData);
       this.validateAuthorizedPeople(formData.authorizedPeople);
       this.validateSignatures(formData);
+      this.validateInsurances(formData.insurances);
 
       // Check emergency contact data before transformation
       if (!formData.emergencyContact?.firstName || 
@@ -168,19 +193,9 @@ export class DataApiTransformer {
 
       // Transform all data sections
       const submitPayload = {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        intakeDate: formData.intakeDate,
-        housingLocation: formData.housingLocation?.toLowerCase() || '',
-        dateOfBirth: formData.dateOfBirth,
-        socialSecurityNumber: formData.socialSecurityNumber,
-        sex: formData.sex?.toLowerCase() || '',
-        email: formData.email.toLowerCase().trim(),
-        driversLicenseNumber: formData.driversLicenseNumber?.trim() || '',
-      
-        // Ensure medications is always an array
+        ...this.transformPersonalInfo(formData),
+        insurances: this.transformInsurances(formData),
         medications: formData.medications || [],
-        
         vehicle: this.transformVehicleInfo(formData),
         medicalInformation: this.transformMedicalInfo(formData),
         legalStatus: this.transformLegalInfo(formData),
