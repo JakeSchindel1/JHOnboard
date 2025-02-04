@@ -1,0 +1,95 @@
+{
+    "firstName": "Test",
+    "lastName": "User",
+    "intakeDate": "2025-02-03",
+    "housingLocation": "Main House",
+    "dateOfBirth": "1990-01-01",
+    "socialSecurityNumber": "123-45-6789",
+    "sex": "male",
+    "email": "test@example.com",
+    "driversLicenseNumber": "DL123456",
+    
+    "emergencyContact": {
+      "firstName": "Emergency",
+      "lastName": "Contact",
+      "phone": "555-555-5555",
+      "relationship": "Parent",
+      "otherRelationship": ""
+    },
+    
+    "insurances": [
+      {
+        "insuranceType": "Medicare",
+        "policyNumber": "MED123456"
+      },
+      {
+        "insuranceType": "Private",
+        "policyNumber": "PRV789012"
+      }
+    ],
+    
+    "medications": [
+      "Medication 1",
+      "Medication 2",
+      "Medication 3"
+    ],
+    
+    "legalStatus": {
+      "hasProbationPretrial": true,
+      "jurisdiction": "County Court",
+      "otherJurisdiction": "State Court",
+      "hasPendingCharges": false,
+      "pendingCharges": [],
+      "hasConvictions": false,
+      "convictions": [],
+      "isWanted": false,
+      "isOnBond": false,
+      "bondsmanName": "",
+      "isSexOffender": false
+    },
+    
+    "signatures": [
+      {
+        "signatureType": "treatment",
+        "signature": "sig_data_1",
+        "signatureTimestamp": "2025-02-03T12:00:00Z",
+        "signatureId": "sig_123"
+      },
+      {
+        "signatureType": "price_consent",
+        "signature": "sig_data_2",
+        "signatureTimestamp": "2025-02-03T12:01:00Z",
+        "signatureId": "sig_124"
+      },
+      {
+        "signatureType": "medication",
+        "signature": "sig_data_3",
+        "signatureTimestamp": "2025-02-03T12:02:00Z",
+        "signatureId": "sig_125"
+      },
+      {
+        "signatureType": "critical_rules",
+        "signature": "sig_data_4",
+        "signatureTimestamp": "2025-02-03T12:03:00Z",
+        "signatureId": "sig_126"
+      },
+      {
+        "signatureType": "house_rules",
+        "signature": "sig_data_5",
+        "signatureTimestamp": "2025-02-03T12:04:00Z",
+        "signatureId": "sig_127"
+      },
+      {
+        "signatureType": "ethics",
+        "signature": "sig_data_6",
+        "signatureTimestamp": "2025-02-03T12:05:00Z",
+        "signatureId": "sig_128"
+      },
+      {
+        "signatureType": "criminal_history",
+        "signature": "sig_data_7",
+        "signatureTimestamp": "2025-02-03T12:06:00Z",
+        "signatureId": "sig_129"
+      }
+    ]
+  }

@@ -334,7 +334,7 @@ export default function OnboardingForm() {
       for (const [key, value] of (formData as any).entries()) {
         data[key] = value;
       }
-
+  
       const response = await fetch(FUNCTION_URL, {
         method: 'POST',
         headers: { 
@@ -342,33 +342,43 @@ export default function OnboardingForm() {
         },
         body: JSON.stringify(data)
       });
-
+  
       // Handle non-OK responses
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`PDF generation failed: ${errorText}`);
       }
-
+  
       // Handle the PDF blob
       const blob = await response.blob();
-
+  
       // Check if the blob is a valid PDF
       if (blob.type !== 'application/pdf') {
         throw new Error('Invalid PDF file received');
       }
-
+  
+      // Create filename in LastNameFirstName_Intake format
+      const firstName = (data.firstName || '').trim();
+      const lastName = (data.lastName || '').trim();
+      const filename = `${lastName}${firstName}_Intake.pdf`
+        .replace(/\s+/g, '') // Remove any spaces
+        .replace(/[^a-zA-Z0-9_.-]/g, ''); // Remove any special characters
+  
       // Create a download link and trigger the download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'onboarding.pdf';
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+  
+      return true;
     } catch (error) {
       console.error('PDF download failed:', error);
       toast.error('Failed to download PDF');
+      return false;
     }
   };
 

@@ -71,6 +71,7 @@ __pycache__/
 /backend/wheels/
 /backend/.installed.cfg
 /backend/*.egg
+venv311/
 
 # IDE specific files
 .idea/
