@@ -324,62 +324,51 @@ export default function OnboardingForm() {
   };
 
   const FUNCTION_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:7071/api/generatepdf'
-  : 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
+ ? 'http://localhost:7071/api/generatepdf'
+ : 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
 
   const downloadPDF = async (formData: FormData) => {
-    try {
-      // Convert FormData to a plain object
-      const data: { [key: string]: any } = {};
-      for (const [key, value] of (formData as any).entries()) {
-        data[key] = value;
-      }
-  
-      const response = await fetch(FUNCTION_URL, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-  
-      // Handle non-OK responses
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`PDF generation failed: ${errorText}`);
-      }
-  
-      // Handle the PDF blob
-      const blob = await response.blob();
-  
-      // Check if the blob is a valid PDF
-      if (blob.type !== 'application/pdf') {
-        throw new Error('Invalid PDF file received');
-      }
-  
-      // Create filename in LastNameFirstName_Intake format
-      const firstName = (data.firstName || '').trim();
-      const lastName = (data.lastName || '').trim();
-      const filename = `${lastName}${firstName}_Intake.pdf`
-        .replace(/\s+/g, '') // Remove any spaces
-        .replace(/[^a-zA-Z0-9_.-]/g, ''); // Remove any special characters
-  
-      // Create a download link and trigger the download
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-  
-      return true;
-    } catch (error) {
-      console.error('PDF download failed:', error);
-      toast.error('Failed to download PDF');
-      return false;
+  try {
+    const response = await fetch(FUNCTION_URL, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(formData)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`PDF generation failed: ${errorText}`);
     }
+
+    const blob = await response.blob();
+
+    if (blob.type !== 'application/pdf') {
+      throw new Error('Invalid PDF file received');
+    }
+
+    const firstName = (formData.firstName || '').trim();
+    const lastName = (formData.lastName || '').trim();
+    const filename = `${lastName}${firstName}_Intake.pdf`
+      .replace(/\s+/g, '')
+      .replace(/[^a-zA-Z0-9_.-]/g, '');
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return true;
+  } catch (error) {
+    console.error('PDF download failed:', error);
+    toast.error('Failed to download PDF');
+    return false;
+  }
   };
 
 
@@ -406,12 +395,13 @@ export default function OnboardingForm() {
       }
   
       const result = await DataApiTransformer.createParticipantRecord(formData);
-      if (!result.success) {
+      
+      if (result.success) {
+        await downloadPDF(formData);
+        router.push('/success');
+      } else {
         throw new Error(result.message || 'Form submission failed');
       }
-  
-      await downloadPDF(formData);
-      router.push('/success');
     } catch (error) {
       console.error('Form submission error:', error);
       setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred');
