@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import OnboardingProgress from '@/components/onboarding/OnboardingProgress';
 import Image from 'next/image';
+import ASAMAssessment from '@/components/onboarding/ASAMAssessment';
 import OnboardingPage1 from '@/components/onboarding/OnboardingPage1';
 import OnboardingPage2 from '@/components/onboarding/OnboardingPage2';
 import OnboardingPage3 from '@/components/onboarding/OnboardingPage3';
@@ -133,7 +134,44 @@ const initialFormState: FormData = {
   }],
 
   // Signatures Array
-  signatures: []
+  signatures: [],
+
+    // Mental Health and Drug History (already there)
+  mentalHealth: {
+    entries: [{
+      diagnosis: '',
+      dateOfDiagnosis: '',
+      prescribedMedication: 'no',
+      medicationCompliant: 'no',
+      currentSymptoms: 'no',
+      describeSymptoms: ''
+    }],
+    suicidalIdeation: 'no',
+    homicidalIdeation: 'no',
+    hallucinations: 'no'
+  },
+  drugHistory: [
+    { drugType: 'Alcohol', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Cannabis', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Cocaine', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Methamphetamines', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Amphetamines/Other Stimulants', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Benzodiazepines/Tranquilizers', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Sedatives/Barbiturates', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Heroin/Opioids', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Fentanyl', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Abuse MAT', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Hallucinogens', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Inhalants', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Steroids', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Kratom', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Illegal Use of Prescriptions', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' },
+    { drugType: 'Abuse OTC Medicine', everUsed: 'no', dateLastUse: '', frequency: '', intravenous: 'no', totalYears: '', amount: '' }
+  ],
+
+  // Add these missing properties
+  recoveryResidences: [],
+  hasResidenceHistory: 'no'
 };
 
 export default function OnboardingForm() {
@@ -380,7 +418,7 @@ export default function OnboardingForm() {
       return;
     }
     
-    if (currentPage < 15) {
+    if (currentPage < 16) {
       setCurrentPage(prev => prev + 1);
       return;
     }
@@ -438,6 +476,8 @@ export default function OnboardingForm() {
         return !hasRequiredSignature('house_rules');
       case 15:
         return !programInfoReviewed;
+      case 16:
+        return !hasRequiredSignature('asam_assessment');
       default:
         return false;
     }
@@ -450,10 +490,11 @@ export default function OnboardingForm() {
       handleSelectChange,
       setCurrentPage,
     };
-
+  
     switch (currentPage) {
       case 1:
         return <OnboardingPage1 {...commonProps} />;
+      
       case 2:
         return (
           <OnboardingPage2 
@@ -462,12 +503,16 @@ export default function OnboardingForm() {
             handleHealthStatusChange={handleHealthStatusChange}
           />
         );
+      
       case 3:
         return <OnboardingPage3 {...commonProps} />;
+      
       case 4:
         return <OnboardingPage4 {...commonProps} />;
+      
       case 5:
         return <OnboardingPage5 {...commonProps} />;
+      
       case 6:
         return (
           <OnboardingPage6 
@@ -477,6 +522,7 @@ export default function OnboardingForm() {
             handleSelectChange={handleSelectChange}
           />
         );
+      
       case 7:
         return (
           <OnboardingPage7 
@@ -484,20 +530,28 @@ export default function OnboardingForm() {
             handleAuthorizedPeopleChange={handleAuthorizedPeopleChange}
           />
         );
+      
       case 8:
         return <OnboardingPage8 {...commonProps} />;
+      
       case 9:
         return <OnboardingPage9 {...commonProps} />;
+      
       case 10:
         return <OnboardingPage10 {...commonProps} />;
+      
       case 11:
         return <OnboardingPage11 {...commonProps} />;
+      
       case 12:
         return <OnboardingPage12 {...commonProps} />;
+      
       case 13:
         return <OnboardingPage13 {...commonProps} />;
+      
       case 14:
         return <OnboardingPage14 {...commonProps} />;
+      
       case 15:
         return (
           <OnboardingPage15 
@@ -505,6 +559,15 @@ export default function OnboardingForm() {
             onComplete={(verified) => setProgramInfoReviewed(verified)}
           />
         );
+  
+        case 16:
+          return (
+            <ASAMAssessment 
+              {...commonProps}
+              addSignature={addSignature}
+            />
+          );
+      
       default:
         return null;
     }
@@ -527,7 +590,7 @@ export default function OnboardingForm() {
       </div>
 
       <h1 className="text-3xl font-bold mb-6 text-center">Onboarding Form</h1>
-      <OnboardingProgress currentPage={currentPage} totalPages={15} />
+      <OnboardingProgress currentPage={currentPage} totalPages={16} />
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {renderPageContent()}

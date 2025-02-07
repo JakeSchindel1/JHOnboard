@@ -6,6 +6,69 @@ export interface ApiResponse {
   data?: any;
 }
 
+
+//ASAM
+export interface MentalHealthEntry {
+  diagnosis: string;
+  dateOfDiagnosis: string;
+  prescribedMedication: 'yes' | 'no';
+  medicationCompliant: 'yes' | 'no';
+  currentSymptoms: 'yes' | 'no';
+  describeSymptoms: string;
+}
+
+// New MentalHealth interface using MentalHealthEntry
+export interface MentalHealth {
+  entries: MentalHealthEntry[];
+  suicidalIdeation: 'yes' | 'no';
+  homicidalIdeation: 'yes' | 'no';
+  hallucinations: 'yes' | 'no';
+}
+
+export interface DrugHistoryEntry {
+  drugType: string;
+  everUsed: 'yes' | 'no';
+  dateLastUse: string;
+  frequency: string;
+  intravenous: 'yes' | 'no';
+  totalYears: string;
+  amount: string;
+}
+
+export interface RecoveryResidenceEntry {
+  name: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+}
+
+export interface TreatmentHistoryEntry {
+  type: string;
+  estimatedDate: string;
+  location: string;
+}
+
+export interface IncarcerationHistoryEntry {
+  type: string;
+  estimatedDate: string;
+  location: string;
+}
+
+export interface ProbationHistoryEntry {
+  type: 'probation' | 'pretrial';
+  jurisdiction: string;
+  startDate: string;
+  endDate: string;
+  officerName: string;
+  officerEmail?: string;  // Optional
+  officerPhone?: string;  // Optional
+}
+
+export interface DrugTestResults {
+  [key: string]: boolean;
+}
+
+
 // Base Types
 export interface PersonalInformation {
   firstName: string;
@@ -112,7 +175,8 @@ export type SignatureType =
   | 'criminal_history'
   | 'ethics'
   | 'critical_rules'
-  | 'house_rules';
+  | 'house_rules'
+  | 'asam_assessment';
 
 export interface Signature {
   signatureType: SignatureType;
@@ -138,6 +202,16 @@ export interface FormData extends PersonalInformation {
   convictions?: Conviction[];
   signatures: Signature[];
   insurances: Insurance[];
+  mentalHealth: MentalHealth;
+  drugHistory?: DrugHistoryEntry[];
+  recoveryResidences: RecoveryResidenceEntry[];
+  hasResidenceHistory: 'yes' | 'no';
+  treatmentHistory?: TreatmentHistoryEntry[];
+  hasTreatmentHistory?: 'yes' | 'no';
+  incarcerationHistory?: IncarcerationHistoryEntry[];
+  hasIncarcerationHistory?: 'yes' | 'no';
+  probationHistory?: ProbationHistoryEntry[];
+  drugTestResults?: DrugTestResults;
 }
 
 // Event Handler Types
@@ -145,7 +219,10 @@ export type InputChangeHandler = (e: React.ChangeEvent<HTMLInputElement>) => voi
 
 export type SelectChangeHandler = (
   name: string, 
-  value: string | boolean | string[] | PendingCharge[] | Conviction[] | Signature[] | Insurance[]
+  value: string | boolean | string[] | PendingCharge[] | Conviction[] | Signature[] |
+   Insurance[]| MentalHealthEntry[] | DrugHistoryEntry[] | RecoveryResidenceEntry[] | 
+   TreatmentHistoryEntry[] | IncarcerationHistoryEntry[] | ProbationHistoryEntry[] |
+   DrugTestResults
 ) => void;
 
 export type VehicleToggleHandler = (hasVehicle: boolean) => void;

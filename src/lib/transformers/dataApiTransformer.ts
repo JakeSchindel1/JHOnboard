@@ -1,13 +1,14 @@
 import { FormData, SignatureType, Signature, Insurance } from '@/types';
 
 export class DataApiTransformer {
+  private static API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7071/api';
+
+  // Existing Validation Methods
   private static validatePersonalInfo(data: any) {
-    // Check existence first
     if (!data.firstName || !data.lastName) {
       throw new Error('First name and last name are required');
     }
     
-    // Then check trimmed values
     if (!data.firstName.trim() || !data.lastName.trim()) {
       throw new Error('First name and last name cannot be empty');
     }
@@ -44,13 +45,11 @@ export class DataApiTransformer {
     if (!Array.isArray(people)) return;
     
     people.forEach((person, index) => {
-      // Check existence first
       if (!person.firstName || !person.lastName || 
           !person.relationship || !person.phone) {
         throw new Error(`Missing information for authorized person at position ${index + 1}`);
       }
       
-      // Then check trimmed values
       if (!person.firstName.trim() || !person.lastName.trim() || 
           !person.relationship.trim() || !person.phone.trim()) {
         throw new Error(`Empty values not allowed for authorized person at position ${index + 1}`);
@@ -66,7 +65,8 @@ export class DataApiTransformer {
       'critical_rules',
       'house_rules',
       'ethics',
-      'criminal_history'
+      'criminal_history',
+      'asam_assessment'  // Added ASAM signature requirement
     ];
   
     if (!Array.isArray(data.signatures)) {
@@ -81,8 +81,8 @@ export class DataApiTransformer {
     });
   }
 
+  // Existing Transform Methods
   private static transformPersonalInfo(formData: any) {
-    // Check for existence before transforming
     if (!formData.firstName || !formData.lastName || !formData.email) {
       throw new Error('Missing required personal information');
     }
@@ -175,7 +175,37 @@ export class DataApiTransformer {
     };
   }
 
-  static async createParticipantRecord(formData: any) {
+  // New ASAM Transform Methods
+  private static transformMentalHealth(formData: FormData) {
+    return {
+      suicidal_ideation: formData.mentalHealth.suicidalIdeation === 'yes',
+      homicidal_ideation: formData.mentalHealth.homicidalIdeation === 'yes',
+      hallucinations: formData.mentalHealth.hallucinations === 'yes',
+      entries: formData.mentalHealth.entries.map(entry => ({
+        diagnosis: entry.diagnosis.trim(),
+        date_of_diagnosis: entry.dateOfDiagnosis,
+        prescribed_medication: entry.prescribedMedication === 'yes',
+        medication_compliant: entry.medicationCompliant === 'yes',
+        current_symptoms: entry.currentSymptoms === 'yes',
+        describe_symptoms: entry.describeSymptoms.trim()
+      }))
+    };
+  }
+
+  private static transformDrugHistory(formData: FormData) {
+    return formData.drugHistory?.map(entry => ({
+      drug_type: entry.drugType.trim(),
+      ever_used: entry.everUsed === 'yes',
+      date_last_use: entry.dateLastUse,
+      frequency: entry.frequency?.trim(),
+      intravenous: entry.intravenous === 'yes',
+      total_years: entry.totalYears?.trim(),
+      amount: entry.amount?.trim()
+    }));
+  }
+
+  // Main Method
+  static async createParticipantRecord(formData: FormData) {
     try {
       // Validate critical data
       this.validatePersonalInfo(formData);
@@ -183,7 +213,7 @@ export class DataApiTransformer {
       this.validateSignatures(formData);
       this.validateInsurances(formData.insurances);
 
-      // Check emergency contact data before transformation
+      // Check emergency contact data
       if (!formData.emergencyContact?.firstName || 
           !formData.emergencyContact?.lastName || 
           !formData.emergencyContact?.phone || 
@@ -207,15 +237,48 @@ export class DataApiTransformer {
           relationship: formData.emergencyContact.relationship.trim(),
           otherRelationship: formData.emergencyContact.otherRelationship?.trim() || ''
         },
-        authorizedPeople: (formData.authorizedPeople || []).map((person: any) => ({
+        authorizedPeople: (formData.authorizedPeople || []).map(person => ({
           firstName: person.firstName.trim(),
           lastName: person.lastName.trim(),
           relationship: person.relationship.trim(),
           phone: person.phone.trim()
         })),
         healthStatus: this.transformHealthStatus(formData.healthStatus),
-        mandatoryReportingAgreed: Boolean(formData.mandatoryReportingAgreed),
-        programInfoReviewed: Boolean(formData.programInfoReviewed)
+
+        
+        // ASAM Data
+        mentalHealth: this.transformMentalHealth(formData),
+        drugHistory: this.transformDrugHistory(formData),
+        recoveryResidences: formData.recoveryResidences?.map(entry => ({
+          name: entry.name.trim(),
+          start_date: entry.startDate,
+          end_date: entry.endDate,
+          location: entry.location.trim()
+        })),
+        treatmentHistory: formData.treatmentHistory?.map(entry => ({
+          type: entry.type.trim(),
+          estimated_date: entry.estimatedDate,
+          location: entry.location.trim()
+        })),
+        incarcerationHistory: formData.incarcerationHistory?.map(entry => ({
+          type: entry.type.trim(),
+          estimated_date: entry.estimatedDate,
+          location: entry.location.trim()
+        })),
+        probationHistory: formData.probationHistory?.map(entry => ({
+          type: entry.type,
+          jurisdiction: entry.jurisdiction.trim(),
+          start_date: entry.startDate,
+          end_date: entry.endDate,
+          officer_name: entry.officerName.trim(),
+          officer_email: entry.officerEmail?.trim(),
+          officer_phone: entry.officerPhone?.trim()
+        })),
+        drugTestResults: formData.drugTestResults ? 
+          Object.entries(formData.drugTestResults).map(([test_type, result]) => ({
+            test_type,
+            result
+          })) : []
       };
 
       console.log('Submitting data to API:', {
