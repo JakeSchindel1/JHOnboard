@@ -70,7 +70,8 @@ const SignatureSchema = z.object({
     'criminal_history',
     'ethics',
     'critical_rules',
-    'house_rules'
+    'house_rules',
+    'asam_assessment'
   ]),
   signature: z.string(),
   signatureTimestamp: z.string().transform(str => new Date(str)),
