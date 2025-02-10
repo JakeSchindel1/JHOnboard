@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Plus, FileText, Home, Trash2, Building2, Building, Scale, Scale3DIcon, FileCheck } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { FormData, OnboardingPageProps, SignatureType, ProbationHistoryEntry, Signature} from '@/types';
-import { useSignaturePad } from '/Users/jake_schindel/Desktop/JHOnboard/src/components/ui/useSignaturePad';
 
 interface ASAMAssessmentProps extends OnboardingPageProps {
   addSignature: (
@@ -27,14 +26,6 @@ const ASAMAssessment: React.FC<ASAMAssessmentProps> = ({
   handleSelectChange,
   addSignature
 }) => {
-  const {
-    signatureRef: participantRef,
-    signatureRef: witnessRef,
-    clearSignature: clearParticipantSignature,
-    clearSignature: clearWitnessSignature,
-    getSignatureData: getParticipantData,
-    getSignatureData: getWitnessData,
-  } = useSignaturePad();
 
 
 
@@ -114,18 +105,18 @@ const ASAMAssessment: React.FC<ASAMAssessmentProps> = ({
   };
 
   const handleSignatures = () => {
-    const participantSignature = getParticipantData();
-    const witnessSignature = getWitnessData();
+    const participantSignature = formData.signatures.find(s => s.signatureType === 'asam_assessment')?.signature;
+    const witnessSignature = formData.signatures.find(s => s.signatureType === 'asam_assessment')?.witnessSignature;
     
     if (!participantSignature || !witnessSignature) {
       alert('Both participant and witness signatures are required');
       return;
     }
-
+  
     const now = new Date().toISOString();
     const participantId = `asam-participant-${Date.now()}`;
     const witnessId = `asam-witness-${Date.now()}`;
-
+  
     addSignature(
       'asam_assessment',
       participantSignature,
@@ -136,9 +127,6 @@ const ASAMAssessment: React.FC<ASAMAssessmentProps> = ({
       witnessId,
       true
     );
-
-    clearParticipantSignature();
-    clearWitnessSignature();
   };
 
   return (
