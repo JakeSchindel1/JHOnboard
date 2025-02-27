@@ -37,9 +37,27 @@ export default function OnboardingPage4({
   const handleProbationChange = (value: string) => {
     const hasLegalStatus = value === 'yes';
     handleSelectChange('legalStatus.hasProbationPretrial', hasLegalStatus);
-    if (!hasLegalStatus) {
+    
+    if (hasLegalStatus) {
+      // Initialize probationHistory with empty array if not already set
+      if (!formData.probationHistory || formData.probationHistory.length === 0) {
+        handleSelectChange('probationHistory', []);
+      }
+    } else {
+      // Clear probation history when selecting "no"
       setJurisdictions([{ jurisdiction: 'unselected', type: 'unselected' }]);
+      handleSelectChange('probationHistory', []);
     }
+  };
+
+  const handleJurisdictionTypeChange = (index: number, type: 'probation' | 'pretrial' | 'both' | 'unselected') => {
+    // Update local jurisdictions state
+    const newJurisdictions = [...jurisdictions];
+    newJurisdictions[index].type = type;
+    setJurisdictions(newJurisdictions);
+    
+    // Now update probationHistory to sync with ASAM Assessment
+    updateProbationHistory();
   };
 
   const handleJurisdictionChange = (index: number, value: string) => {
@@ -49,7 +67,12 @@ export default function OnboardingPage4({
       newJurisdictions[index].otherJurisdiction = '';
     }
     setJurisdictions(newJurisdictions);
+    
+    // Update formData.legalStatus.jurisdiction
     handleSelectChange('legalStatus.jurisdiction', newJurisdictions.map(j => j.jurisdiction).join(','));
+    
+    // Update probationHistory to sync with ASAM Assessment
+    updateProbationHistory();
   };
 
   const handleOtherJurisdictionChange = (index: number, value: string) => {
@@ -69,6 +92,45 @@ export default function OnboardingPage4({
     handleSelectChange('legalStatus.jurisdiction', newJurisdictions.map(j => j.jurisdiction).join(','));
     handleSelectChange('legalStatus.jurisdictionTypes', newJurisdictions.map(j => j.type).join(','));
     handleSelectChange('legalStatus.otherJurisdiction', newJurisdictions.map(j => j.otherJurisdiction || '').join(','));
+  };
+
+  // Function to update probationHistory based on jurisdictions
+  const updateProbationHistory = () => {
+    const validJurisdictions = jurisdictions.filter(j => 
+      j.jurisdiction !== 'unselected' && j.jurisdiction !== 'none' && j.type !== 'unselected'
+    );
+    
+    // Map jurisdictions to probationHistory entries
+    const probationEntries = validJurisdictions.map(j => {
+      let probationType: 'probation' | 'pretrial';
+      if (j.type === 'both') {
+        probationType = 'probation'; // Default to probation if both
+      } else {
+        probationType = j.type as 'probation' | 'pretrial';
+      }
+      
+      let jurisdictionName = j.jurisdiction;
+      // Format jurisdiction name (capitalize first letter)
+      if (jurisdictionName === 'henrico') jurisdictionName = 'Henrico';
+      if (jurisdictionName === 'chesterfield') jurisdictionName = 'Chesterfield';
+      if (jurisdictionName === 'richmond') jurisdictionName = 'Richmond City';
+      if (jurisdictionName === 'other' && j.otherJurisdiction) {
+        jurisdictionName = j.otherJurisdiction;
+      }
+      
+      return {
+        type: probationType,
+        jurisdiction: jurisdictionName,
+        startDate: '',
+        endDate: '',
+        officerName: '',
+        officerEmail: '',
+        officerPhone: ''
+      };
+    });
+    
+    // Update probationHistory in formData
+    handleSelectChange('probationHistory', probationEntries);
   };
 
   return (
@@ -216,10 +278,7 @@ export default function OnboardingPage4({
                         <Select 
                           value={jurisdictionEntry.type}
                           onValueChange={(value) => {
-                            const newJurisdictions = [...jurisdictions];
-                            newJurisdictions[index].type = value as 'probation' | 'pretrial' | 'both' | 'unselected';
-                            setJurisdictions(newJurisdictions);
-                            handleSelectChange('jurisdictionTypes', newJurisdictions.map(j => j.type).join(','));
+                            handleJurisdictionTypeChange(index, value as 'probation' | 'pretrial' | 'both' | 'unselected');
                           }}
                         >
                           <SelectTrigger id={`type-${index}`} className="bg-white">

@@ -3,12 +3,35 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { UserPlus, FileText, X, FileCheck } from "lucide-react";
+import { UserPlus, FileText, X, FileCheck, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { OnboardingPage7Props, AuthorizedPerson, Signature } from '@/types';
+
+const Alert: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = '' }) => (
+  <div className={`rounded-lg border p-4 ${className}`}>
+    {children}
+  </div>
+);
+
+const AlertTitle: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = '' }) => (
+  <h3 className={`font-medium mb-2 ${className}`}>{children}</h3>
+);
+
+const AlertDescription: React.FC<{
+  children: React.ReactNode;
+  className?: string;
+}> = ({ children, className = '' }) => (
+  <div className={`text-sm ${className}`}>{children}</div>
+);
 
 const generateSignatureId = () => `JH-DISC-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
@@ -24,6 +47,9 @@ export default function OnboardingPage7({
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const currentSignature = formData.signatures.find(s => s.signatureType === 'disclosure');
   const [hasAgreed, setHasAgreed] = useState(Boolean(currentSignature?.agreed));
+  const [mandatoryReportingAgreed, setMandatoryReportingAgreed] = useState(
+    Boolean(currentSignature?.agreed)
+  );
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const element = event.currentTarget;
@@ -81,7 +107,7 @@ export default function OnboardingPage7({
       signature: existingSignature?.signature || '',
       signatureTimestamp: existingSignature?.signatureTimestamp || '',
       signatureId: existingSignature?.signatureId || '',
-      agreed: checked,
+      agreed: checked && mandatoryReportingAgreed,
       witnessSignature: existingSignature?.witnessSignature,
       witnessTimestamp: existingSignature?.witnessTimestamp
     };
@@ -90,6 +116,23 @@ export default function OnboardingPage7({
       ...formData.signatures.filter(s => s.signatureType !== 'disclosure'),
       updatedSignature
     ]);
+  };
+
+  const handleMandatoryReportingChange = (checked: boolean) => {
+    setMandatoryReportingAgreed(checked);
+    
+    const existingSignature = formData.signatures.find(s => s.signatureType === 'disclosure');
+    if (existingSignature) {
+      const updatedSignature: Signature = {
+        ...existingSignature,
+        agreed: checked && hasAgreed
+      };
+
+      handleSelectChange('signatures', [
+        ...formData.signatures.filter(s => s.signatureType !== 'disclosure'),
+        updatedSignature
+      ]);
+    }
   };
 
   const handleSignatureChange = (signature: string) => {
@@ -101,7 +144,7 @@ export default function OnboardingPage7({
       signature,
       signatureTimestamp: now.toISOString(),
       signatureId,
-      agreed: true,
+      agreed: hasAgreed && mandatoryReportingAgreed,
       witnessSignature: currentSignature?.witnessSignature,
       witnessTimestamp: currentSignature?.witnessTimestamp
     };
@@ -136,9 +179,36 @@ export default function OnboardingPage7({
         <p className="text-sm text-gray-600">Please read carefully and complete all sections</p>
       </div>
 
+      {/* Mandatory Reporting Notice - Moved from Page 8 */}
+      <Alert className="bg-amber-50 border-amber-200">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+          <div>
+            <AlertTitle className="text-amber-800">Mandatory Reporting Notice</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              Journey House is a Third Party mandatory reporting agency for DOC supervision and courts
+            </AlertDescription>
+            <div className="mt-4 flex items-center gap-3">
+              <Checkbox
+                id="mandatoryReporting"
+                checked={mandatoryReportingAgreed}
+                onCheckedChange={handleMandatoryReportingChange}
+              />
+              <Label htmlFor="mandatoryReporting" className="text-sm text-amber-800">
+                I acknowledge that Journey House Foundation is required to report to:
+              </Label>
+            </div>
+            <ul className="ml-8 mt-2 list-disc text-sm text-amber-700">
+              <li>Judicial system representatives</li>
+              <li>Department of Corrections</li>
+            </ul>
+          </div>
+        </div>
+      </Alert>
+
       {/* Disclosure Text Card */}
       <Card>
-      <CardHeader>
+        <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileText className="h-5 w-5 text-blue-500" />
             Authorization Statement
@@ -208,7 +278,7 @@ export default function OnboardingPage7({
 
       {/* Authorized People Card */}
       <Card>
-      <CardHeader>
+        <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <UserPlus className="h-5 w-5 text-green-500" />
             Authorized People
@@ -241,7 +311,7 @@ export default function OnboardingPage7({
                     className="bg-white"
                     placeholder="Enter first name"
                     required
-                    disabled={!hasAgreed}
+                    disabled={!hasAgreed || !mandatoryReportingAgreed}
                   />
                 </div>
 
@@ -257,7 +327,7 @@ export default function OnboardingPage7({
                     className="bg-white"
                     placeholder="Enter last name"
                     required
-                    disabled={!hasAgreed}
+                    disabled={!hasAgreed || !mandatoryReportingAgreed}
                   />
                 </div>
 
@@ -269,7 +339,7 @@ export default function OnboardingPage7({
                   <Select
                     value={person.relationship}
                     onValueChange={(value) => handlePersonChange(index, 'relationship', value)}
-                    disabled={!hasAgreed}
+                    disabled={!hasAgreed || !mandatoryReportingAgreed}
                   >
                     <SelectTrigger id={`relationship-${index}`} className="bg-white">
                       <SelectValue placeholder="Select relationship" />
@@ -300,7 +370,7 @@ export default function OnboardingPage7({
                     className="bg-white"
                     placeholder="(XXX)XXX-XXXX"
                     required
-                    disabled={!hasAgreed}
+                    disabled={!hasAgreed || !mandatoryReportingAgreed}
                   />
                 </div>
               </div>
@@ -312,7 +382,7 @@ export default function OnboardingPage7({
             variant="outline"
             className="w-full"
             onClick={addPerson}
-            disabled={!hasAgreed}
+            disabled={!hasAgreed || !mandatoryReportingAgreed}
           >
             <UserPlus className="h-4 w-4 mr-2" />
             Add Another Person
@@ -320,8 +390,8 @@ export default function OnboardingPage7({
         </CardContent>
       </Card>
 
-        {/* Signature Section */}
-        <Card>
+      {/* Signature Section */}
+      <Card>
         <CardHeader className="border-b">
           <CardTitle className="flex items-center gap-2">
             <FileCheck className="h-5 w-5 text-emerald-500" />
@@ -337,7 +407,7 @@ export default function OnboardingPage7({
                 value={currentSignature?.signature || ''}
                 onChange={(e) => handleSignatureChange(e.target.value)}
                 required
-                disabled={!hasAgreed}
+                disabled={!hasAgreed || !mandatoryReportingAgreed}
                 placeholder="Type your full legal name to sign"
                 className="bg-white"
               />
@@ -358,7 +428,7 @@ export default function OnboardingPage7({
                 value={currentSignature?.witnessSignature || ''}
                 onChange={(e) => handleWitnessSignature(e.target.value)}
                 required
-                disabled={!currentSignature?.signature || !hasAgreed}
+                disabled={!currentSignature?.signature || !hasAgreed || !mandatoryReportingAgreed}
                 placeholder="Witness full legal name"
                 className="bg-white"
               />

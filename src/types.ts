@@ -80,6 +80,7 @@ export interface PersonalInformation {
   sex: string;
   email: string;
   driversLicenseNumber?: string;
+  phoneNumber?: string;
 }
 
 export interface Insurance {
@@ -94,6 +95,7 @@ export interface VehicleInformation {
   insured: boolean;
   insurances: Insurance[];
   policyNumber?: string;
+  noVehicle?: boolean;
 }
 
 export interface EmergencyContact {
@@ -146,6 +148,7 @@ export interface HealthStatus {
 export interface LegalStatus {
   hasProbationPretrial: boolean;
   jurisdiction?: string;
+  jurisdictionTypes?: string;
   otherJurisdiction?: string;
   hasPendingCharges: boolean;
   hasConvictions: boolean;

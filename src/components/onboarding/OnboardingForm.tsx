@@ -610,19 +610,19 @@ export default function OnboardingForm() {
         <div className="flex justify-between mt-6">
           {currentPage > 1 && (
             <Button 
-            type="button" 
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            variant="outline"
-          >
-            Back
-          </Button>
+              type="button" 
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              variant="outline"
+            >
+              Back
+            </Button>
           )}
           <div className={currentPage === 1 ? 'ml-auto' : ''}>
             <Button 
               type="submit"
               disabled={isSubmitDisabled() || isSubmitting}
             >
-              {currentPage === 15 ? (isSubmitting ? "Submitting..." : "Submit") : "Next"}
+              {currentPage === 16 ? (isSubmitting ? "Submitting..." : "Submit") : "Next"}
             </Button>
           </div>
         </div>

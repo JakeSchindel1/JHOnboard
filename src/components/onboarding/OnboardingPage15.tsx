@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { BookOpen, Home, Clock, UserCheck } from "lucide-react";
-import { LucideIcon } from 'lucide-react';
+import { BookOpen, GraduationCap, Home, BookText, DollarSign, LucideIcon } from "lucide-react";
 import { OnboardingPageProps } from '@/types';
 
 interface ContentItem {
@@ -35,7 +34,7 @@ const PROGRAM_SECTIONS: ProgramSections = {
     ]
   },
   "Intensive Monitoring": {
-    icon: Clock,
+    icon: GraduationCap,
     content: [
       {
         title: "Program Overview",
@@ -77,7 +76,7 @@ const PROGRAM_SECTIONS: ProgramSections = {
     ]
   },
   "Step-Up": {
-    icon: UserCheck,
+    icon: DollarSign,
     content: [
       {
         title: "Program Overview",
@@ -149,8 +148,8 @@ export default function OnboardingPage15({
   const observerRef = useRef<IntersectionObserver | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Minimum time required to read (in milliseconds)
-  const MIN_READ_TIME = 10000; // 10 seconds
+  // Reduced minimum time required to read (in milliseconds)
+  const MIN_READ_TIME = 3000; // 3 seconds, reduced from 10 seconds
 
   useEffect(() => {
     // Set initial scroll position to top
@@ -165,77 +164,112 @@ export default function OnboardingPage15({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Check which sections are already visible on initial load
   useEffect(() => {
-    // Debug log the total number of sections
-    console.log('Total sections:', Object.keys(PROGRAM_SECTIONS).length);
-    
+    const checkInitialVisibility = () => {
+      Object.entries(sectionRefs.current).forEach(([sectionId, element]) => {
+        if (element && isElementInViewport(element)) {
+          setViewedSections(prev => new Set([...Array.from(prev), sectionId]));
+        }
+      });
+    };
+
+    // Check after a short delay to ensure refs are set
+    const timer = setTimeout(checkInitialVisibility, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Helper function to check if element is in viewport
+  const isElementInViewport = (el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    return (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  };
+
+  useEffect(() => {
     // Clean up previous observer
     if (observerRef.current) {
       observerRef.current.disconnect();
     }
 
-    // Create new observer after a short delay to prevent false positives on load
-    const timer = setTimeout(() => {
-      observerRef.current = new IntersectionObserver(
-        (entries) => {
-          // Only process entries if enough time has passed and user has scrolled
-          const timeSpent = Date.now() - pageLoadTime;
-          if (timeSpent < MIN_READ_TIME || !hasScrolled) {
-            return;
-          }
+    // Create new observer with better settings
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        // Only process entries if user has scrolled
+        if (!hasScrolled) {
+          return;
+        }
 
-          entries.forEach((entry) => {
-            console.log('Intersection entry:', {
-              id: entry.target.id,
-              isIntersecting: entry.isIntersecting,
-              intersectionRatio: entry.intersectionRatio
-            });
-            
-            if (entry.isIntersecting && entry.target.id) {
-              setViewedSections(prev => {
-                const newSet = new Set([...Array.from(prev), entry.target.id]);
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.target.id) {
+            // Mark this section as viewed
+            setViewedSections(prev => {
+              const newSet = new Set([...Array.from(prev), entry.target.id]);
+              
+              // Check if all sections are now viewed
+              const totalSections = Object.keys(PROGRAM_SECTIONS).length;
+              if (newSet.size === totalSections) {
+                const timeSpent = Date.now() - pageLoadTime;
                 
-                // Debug log current viewed sections
-                console.log('Currently viewed sections:', Array.from(newSet));
-                
-                // Check if all sections are now viewed
-                const totalSections = Object.keys(PROGRAM_SECTIONS).length;
-                if (newSet.size === totalSections) {
-                  console.log('All sections viewed!');
+                // Only complete if minimum time has passed
+                if (timeSpent >= MIN_READ_TIME) {
                   setIsFullyViewed(true);
                   onComplete(true);
-                } else {
-                  console.log(`Progress: ${newSet.size}/${totalSections}`);
                 }
-                
-                return newSet;
-              });
-            }
-          });
-        },
-        {
-          root: null,
-          rootMargin: "100px",  // Added margin to detect elements earlier
-          threshold: 0.1, // Lowered threshold for easier detection
-        }
-      );
+              }
+              
+              return newSet;
+            });
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: "0px", // Changed from 100px to be more precise
+        threshold: [0.3, 0.6], // Multiple thresholds for better detection
+      }
+    );
 
-      // Log all sections being observed
-      Object.keys(PROGRAM_SECTIONS).forEach(section => {
-        if (sectionRefs.current[section]) {
-          console.log('Observing section:', section);
-          observerRef.current?.observe(sectionRefs.current[section]!);
+    // Observe all section elements
+    Object.keys(PROGRAM_SECTIONS).forEach(section => {
+      if (sectionRefs.current[section]) {
+        observerRef.current?.observe(sectionRefs.current[section]!);
+      }
+    });
+
+    // Add a fallback timer that completes after reasonable time if user has scrolled
+    const fallbackTimer = setTimeout(() => {
+      if (hasScrolled && viewedSections.size > 0) {
+        const timeSpent = Date.now() - pageLoadTime;
+        if (timeSpent >= MIN_READ_TIME * 2) {
+          setIsFullyViewed(true);
+          onComplete(true);
         }
-      });
-    }, 1000); // 1 second delay before starting observation
+      }
+    }, 15000); // 15 seconds fallback
 
     return () => {
-      clearTimeout(timer);
       if (observerRef.current) {
         observerRef.current.disconnect();
       }
+      clearTimeout(fallbackTimer);
     };
-  }, [hasScrolled, pageLoadTime, onComplete]);
+  }, [hasScrolled, pageLoadTime, onComplete, viewedSections]);
+
+  // When sections are viewed, check if all have been viewed
+  useEffect(() => {
+    const totalSections = Object.keys(PROGRAM_SECTIONS).length;
+    const timeSpent = Date.now() - pageLoadTime;
+    
+    if (viewedSections.size === totalSections && timeSpent >= MIN_READ_TIME && hasScrolled) {
+      setIsFullyViewed(true);
+      onComplete(true);
+    }
+  }, [viewedSections, pageLoadTime, hasScrolled, onComplete]);
 
   const setRef = (section: string) => (el: HTMLDivElement | null) => {
     sectionRefs.current[section] = el;
@@ -254,46 +288,57 @@ export default function OnboardingPage15({
       </div>
 
       <div className="grid gap-4">
-        {Object.entries(PROGRAM_SECTIONS).map(([section, { icon: Icon, content }]) => (
-          <Card 
-            key={section} 
-            ref={setRef(section)} 
-            id={section}
-            className="scroll-mt-4 min-h-[100px]"
-          >
-            <CardHeader className="border-b bg-blue-50">
-              <CardTitle className="flex items-center gap-2 text-blue-900">
-                <Icon className="h-5 w-5 text-blue-500" />
-                {section}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="space-y-6">
-                {content.map((item, index) => (
-                  <div key={index} className="space-y-3">
-                    <h3 className="font-medium text-gray-900">{item.title}</h3>
-                    {item.text && <p className="text-gray-700">{item.text}</p>}
-                    {item.status && (
-                      <div className="bg-blue-50 p-2 rounded-lg">
-                        <p className="text-blue-800 font-medium text-sm">{item.status}</p>
-                      </div>
-                    )}
-                    {item.requirements && (
-                      <div className="space-y-2">
-                        {item.requirements.map((req, reqIndex) => (
-                          <div key={reqIndex} className="flex items-start gap-3 p-2 bg-gray-50 rounded-lg">
-                            <div className="h-2 w-2 mt-2 shrink-0 rounded-full bg-blue-400" />
-                            <p className="text-gray-700">{req}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {Object.entries(PROGRAM_SECTIONS).map(([section, { icon: Icon, content }]) => {
+          const isViewed = viewedSections.has(section);
+          
+          return (
+            <Card 
+              key={section} 
+              ref={setRef(section)} 
+              id={section}
+              className={`scroll-mt-4 min-h-[100px] transition-all duration-300 ${
+                isViewed ? 'border-green-200' : ''
+              }`}
+            >
+              <CardHeader className={`border-b ${isViewed ? 'bg-green-50' : 'bg-blue-50'}`}>
+                <CardTitle className="flex items-center gap-2 text-blue-900">
+                  <Icon className={`h-5 w-5 ${isViewed ? 'text-green-500' : 'text-blue-500'}`} />
+                  {section}
+                  {isViewed && (
+                    <span className="ml-auto text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                      Viewed
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="space-y-6">
+                  {content.map((item, index) => (
+                    <div key={index} className="space-y-3">
+                      <h3 className="font-medium text-gray-900">{item.title}</h3>
+                      {item.text && <p className="text-gray-700">{item.text}</p>}
+                      {item.status && (
+                        <div className="bg-blue-50 p-2 rounded-lg">
+                          <p className="text-blue-800 font-medium text-sm">{item.status}</p>
+                        </div>
+                      )}
+                      {item.requirements && (
+                        <div className="space-y-2">
+                          {item.requirements.map((req, reqIndex) => (
+                            <div key={reqIndex} className="flex items-start gap-3 p-2 bg-gray-50 rounded-lg">
+                              <div className="h-2 w-2 mt-2 shrink-0 rounded-full bg-blue-400" />
+                              <p className="text-gray-700">{req}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Navigation and Progress Container */}
@@ -308,16 +353,18 @@ export default function OnboardingPage15({
                     ? "Please take time to review all sections carefully" 
                     : isFullyViewed 
                       ? "All sections have been reviewed" 
-                      : "Please scroll through and review all sections to proceed"}
+                      : `You've reviewed ${viewedSections.size} of ${totalSections} sections`}
                 </p>
               </div>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm font-medium text-gray-700">
                 {Math.round(progressPercentage)}%
               </span>
             </div>
-            <div className="mt-2 bg-gray-200 rounded-full h-2">
+            <div className="mt-2 bg-gray-200 rounded-full h-2.5">
               <div 
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                className={`${
+                  isFullyViewed ? 'bg-green-500' : 'bg-blue-500'
+                } h-2.5 rounded-full transition-all duration-300`}
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>

@@ -95,6 +95,7 @@ export const OnboardingSchema = z.object({
   sex: z.string().min(1, 'Sex is required'),
   email: z.string().email('Valid email is required'),
   driversLicenseNumber: z.string().min(1, 'Driver\'s license number is required'),
+  phoneNumber: z.string().optional(),
 
   // Health Status
   healthStatus: HealthStatusSchema,

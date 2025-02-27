@@ -96,7 +96,8 @@ export class DataApiTransformer {
       socialSecurityNumber: formData.socialSecurityNumber,
       sex: formData.sex?.toLowerCase() || '',
       email: formData.email.toLowerCase().trim(),
-      driversLicenseNumber: formData.driversLicenseNumber?.trim() || ''
+      driversLicenseNumber: formData.driversLicenseNumber?.trim() || '',
+      phoneNumber: formData.phoneNumber?.trim() || ''
     };
   }
 

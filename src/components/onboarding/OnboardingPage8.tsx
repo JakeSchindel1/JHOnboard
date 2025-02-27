@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Info, CheckCircle2, FileCheck, AlertTriangle } from "lucide-react";
+import { Info, CheckCircle2, FileCheck } from "lucide-react";
 import { OnboardingPageProps, Signature } from '@/types';
 
 const Alert: React.FC<{
@@ -40,9 +40,6 @@ export default function OnboardingPage8({
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const currentSignature = formData.signatures.find(s => s.signatureType === 'treatment');
   const [hasReadContent, setHasReadContent] = useState(Boolean(currentSignature?.agreed));
-  const [mandatoryReportingAgreed, setMandatoryReportingAgreed] = useState(
-    Boolean(formData.signatures.find(s => s.signatureType === 'treatment')?.agreed)
-  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
@@ -70,23 +67,6 @@ export default function OnboardingPage8({
       ...formData.signatures.filter(s => s.signatureType !== 'treatment'),
       updatedSignature
     ]);
-  };
-
-  const handleMandatoryReportingChange = (checked: boolean) => {
-    setMandatoryReportingAgreed(checked);
-    
-    const existingSignature = formData.signatures.find(s => s.signatureType === 'treatment');
-    if (existingSignature) {
-      const updatedSignature: Signature = {
-        ...existingSignature,
-        agreed: checked && hasReadContent
-      };
-
-      handleSelectChange('signatures', [
-        ...formData.signatures.filter(s => s.signatureType !== 'treatment'),
-        updatedSignature
-      ]);
-    }
   };
 
   const handleSignatureChange = (signature: string) => {
@@ -131,28 +111,6 @@ export default function OnboardingPage8({
         <h1 className="text-3xl font-bold text-gray-900">Treatment Services</h1>
         <p className="text-gray-600">Available mental health and recovery options</p>
       </div>
-
-      <Alert className="bg-amber-50 border-amber-200">
-        <AlertTriangle className="h-5 w-5 text-amber-600" />
-        <AlertTitle className="text-amber-800">Mandatory Reporting Notice</AlertTitle>
-        <AlertDescription className="text-amber-700">
-          Journey House is a Third Party mandatory reporting agency for DOC supervision and courts
-        </AlertDescription>
-        <div className="mt-4 flex items-center gap-3">
-          <Checkbox
-            id="mandatoryReporting"
-            checked={mandatoryReportingAgreed}
-            onCheckedChange={handleMandatoryReportingChange}
-          />
-          <Label htmlFor="mandatoryReporting" className="text-sm text-amber-800">
-            I acknowledge that Journey House Foundation is required to report to:
-          </Label>
-        </div>
-        <ul className="ml-8 mt-2 list-disc text-sm text-amber-700">
-          <li>Judicial system representatives</li>
-          <li>Department of Corrections</li>
-        </ul>
-      </Alert>
 
       <Card>
         <CardHeader className="border-b">
@@ -230,12 +188,12 @@ export default function OnboardingPage8({
                 id="treatmentSignature"
                 value={currentSignature?.signature || ''}
                 onChange={(e) => handleSignatureChange(e.target.value)}
-                disabled={!hasReadContent || !mandatoryReportingAgreed}
+                disabled={!hasReadContent}
                 placeholder="Type your full legal name"
                 className="bg-white"
               />
               <p className="text-sm text-gray-600">
-                By typing your name above, you acknowledge understanding Journey House&apos;s treatment policies, including consent for medical care, mandatory reporting requirements, and emergency procedures.
+                By typing your name above, you acknowledge understanding Journey House&apos;s treatment policies, including consent for medical care and emergency procedures.
               </p>
               {currentSignature?.signatureTimestamp && (
                 <p className="text-sm text-gray-500">

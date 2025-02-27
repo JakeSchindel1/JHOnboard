@@ -22,11 +22,7 @@ export default function OnboardingPage2({
 }: OnboardingPage2Props) {
   const [showSSN, setShowSSN] = useState(false);
   
-  const noCar = !formData.vehicle || (
-    !formData.vehicle.make && 
-    !formData.vehicle.model && 
-    !formData.vehicle.tagNumber
-  );
+  const noCar = !formData.vehicle || formData.vehicle.noVehicle === true;
 
   const handleSSNChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/[^\d]/g, '').slice(0, 9);
@@ -40,6 +36,25 @@ export default function OnboardingPage2({
     handleInputChange({
       target: {
         name: 'socialSecurityNumber',
+        value
+      }
+    } as React.ChangeEvent<HTMLInputElement>);
+  }, [handleInputChange]);
+
+  const handlePhoneNumberChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/[^\d]/g, '').slice(0, 10);
+    
+    if (value.length > 6) {
+      value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6)}`;
+    } else if (value.length > 3) {
+      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
+    } else if (value.length > 0) {
+      value = `(${value}`;
+    }
+
+    handleInputChange({
+      target: {
+        name: 'phoneNumber',
         value
       }
     } as React.ChangeEvent<HTMLInputElement>);
@@ -121,6 +136,24 @@ export default function OnboardingPage2({
               <p className="text-sm text-gray-500">Select your biological sex</p>
             </div>
 
+            {/* Phone Number - New field */}
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">
+                <RequiredLabel>Phone Number</RequiredLabel>
+              </Label>
+              <Input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                value={formData.phoneNumber || ''}
+                onChange={handlePhoneNumberChange}
+                placeholder="(XXX) XXX-XXXX"
+                className="bg-white"
+                required
+              />
+              <p className="text-sm text-gray-500">Your primary contact number</p>
+            </div>
+
             {/* Driver's License */}
             <div className="space-y-2">
               <Label htmlFor="driversLicenseNumber">
@@ -174,7 +207,7 @@ export default function OnboardingPage2({
                 type="button"
                 role="switch"
                 aria-checked={noCar}
-                onClick={() => handleVehicleToggle(!noCar)}
+                onClick={() => handleVehicleToggle(true)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   noCar ? 'bg-blue-600' : 'bg-gray-200'
                 }`}
