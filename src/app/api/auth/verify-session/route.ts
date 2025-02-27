@@ -9,6 +9,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ valid: false }, { status: 401 });
     }
 
+    // Check if auth is available
+    if (!auth) {
+      console.error('Firebase Auth not initialized');
+      return NextResponse.json({ valid: false, error: 'Auth service not available' }, { status: 500 });
+    }
+
     // Verify the session with Firebase Admin
     await auth.verifySessionCookie(session);
     
