@@ -27,7 +27,26 @@ const AuthContext = createContext<AuthContextProps>({
   logout: async () => {},
 });
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  
+  // Handle the case where we're outside a provider during static generation
+  if (typeof window === 'undefined' && context === undefined) {
+    return {
+      user: null,
+      loading: true,
+      login: async () => {},
+      register: async () => {},
+      logout: async () => {}
+    };
+  }
+  
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  
+  return context;
+};
 
 export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
