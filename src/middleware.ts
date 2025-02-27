@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { auth } from '@/lib/firebase-admin';
 
 // Protected routes that require authentication
 const protectedRoutes = ['/onboarding'];
@@ -16,15 +15,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    try {
-      // Verify the session
-      await auth.verifySessionCookie(session);
-      // If it's valid, let them through
-      return NextResponse.next();
-    } catch (error) {
-      // If the session is not valid, redirect to login
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+    // We can't directly use firebase-admin in edge middleware
+    // So instead, we'll allow the client to handle auth checks
+    return NextResponse.next();
   }
   
   // If the route is not protected, allow access
