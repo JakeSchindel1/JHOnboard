@@ -177,8 +177,8 @@ const ASAMAssessment: React.FC<ASAMAssessmentProps> = ({
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">ASAM Assessment</h2>
-        <p className="text-sm text-gray-600">Mental Health and Drug History Self-Report</p>
+        <h2 className="text-2xl font-bold mb-2">FOCUS HISTORY</h2>
+        <p className="text-sm text-gray-600">Please complete all sections accurately</p>
       </div>
 
       {/* Mental Health Section */}
@@ -1284,9 +1284,9 @@ const ASAMAssessment: React.FC<ASAMAssessmentProps> = ({
 {/* Signature Section */}
       <Card>
         <CardHeader className="border-b">
-          <CardTitle className="flex items-center gap-2">
-            <FileCheck className="h-5 w-5 text-emerald-500" />
-            ASAM Assessment Authorization
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileCheck className="h-5 w-5 text-blue-500" />
+            Focus History Authorization
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
