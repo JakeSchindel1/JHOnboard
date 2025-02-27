@@ -177,7 +177,7 @@ const ASAMAssessment: React.FC<ASAMAssessmentProps> = ({
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Focus History</h2>
+        <h2 className="text-2xl font-bold mb-2">ASAM Assessment</h2>
         <p className="text-sm text-gray-600">Mental Health and Drug History Self-Report</p>
       </div>
 
