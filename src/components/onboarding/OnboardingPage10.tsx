@@ -8,6 +8,7 @@ import { FileCheck, ScrollText } from "lucide-react";
 import { OnboardingPageProps, SignatureType, Signature } from '@/types';
 
 const generateSignatureId = () => `JH-CONTRACT-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+const generateGuestSignatureId = () => `JH-GUEST-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 
 const getSignature = (signatures: Signature[], type: SignatureType) => {
   return signatures.find(sig => sig.signatureType === type);
@@ -26,7 +27,7 @@ const updateSignature = (
       signatureType: type,
       signature: '',
       signatureTimestamp: '',
-      signatureId: generateSignatureId(),
+      signatureId: type === 'resident_as_guest' ? generateGuestSignatureId() : generateSignatureId(),
       ...updates
     } as Signature);
   } else {
@@ -46,6 +47,7 @@ export default function ResidentContract({
 }: OnboardingPageProps) {
   const tenantRightsSignature = getSignature(formData.signatures, 'tenant_rights');
   const contractTermsSignature = getSignature(formData.signatures, 'contract_terms');
+  const guestAgreementSignature = getSignature(formData.signatures, 'resident_as_guest');
   
   const [hasScrolledFirstSection, setHasScrolledFirstSection] = useState(false);
   const [hasScrolledSecondSection, setHasScrolledSecondSection] = useState(false);
@@ -71,11 +73,19 @@ export default function ResidentContract({
     setRightAgreed(checked);
     const timestamp = new Date().toISOString();
     
-    const updatedSignatures = updateSignature(formData.signatures, 'tenant_rights', {
+    // Update both tenant rights and resident as guest signatures
+    let updatedSignatures = updateSignature(formData.signatures, 'tenant_rights', {
       agreed: checked,
       signature: residentName,
       signatureTimestamp: checked ? timestamp : '',
       signatureId: checked ? generateSignatureId() : ''
+    });
+    
+    updatedSignatures = updateSignature(updatedSignatures, 'resident_as_guest', {
+      agreed: checked,
+      signature: residentName,
+      signatureTimestamp: checked ? timestamp : '',
+      signatureId: checked ? generateGuestSignatureId() : ''
     });
     
     handleSelectChange('signatures', updatedSignatures);

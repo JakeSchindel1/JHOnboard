@@ -5,7 +5,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FileCheck, AlertTriangle, PlusCircle, XCircle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
-import { OnboardingPageProps, PendingCharge, Conviction, FormData } from '@/types';
+import { OnboardingPageProps, PendingCharge, Conviction, FormData, Signature } from '@/types';
+import { useRouter } from 'next/router';
 
 const RadioOptions = ({ 
   label, 
@@ -40,6 +41,38 @@ const RadioOptions = ({
   </div>
 );
 
+const generateCriminalHistorySignatureId = () => `JH-CRIM-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+
+const getSignature = (signatures: Signature[], type: 'criminal_history') => {
+  return signatures.find(sig => sig.signatureType === type);
+};
+
+const updateSignature = (
+  currentSignatures: Signature[],
+  type: 'criminal_history',
+  updates: Partial<Signature>
+): Signature[] => {
+  const existingIndex = currentSignatures.findIndex(sig => sig.signatureType === type);
+  const updatedSignatures = [...currentSignatures];
+  
+  if (existingIndex === -1) {
+    updatedSignatures.push({
+      signatureType: type,
+      signature: '',
+      signatureTimestamp: '',
+      signatureId: generateCriminalHistorySignatureId(),
+      ...updates
+    } as Signature);
+  } else {
+    updatedSignatures[existingIndex] = {
+      ...updatedSignatures[existingIndex],
+      ...updates
+    };
+  }
+  
+  return updatedSignatures;
+};
+
 export default function OnboardingPage11({
   formData,
   handleInputChange,
@@ -53,7 +86,7 @@ export default function OnboardingPage11({
     { offense: '' }
   ]);
 
-  const generateSignatureId = () => `JH-CRIM-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  const router = useRouter();
 
   const handlePendingChargeChange = (index: number, field: keyof PendingCharge, value: string) => {
     const newPendingCharges = [...pendingCharges];
@@ -94,6 +127,59 @@ export default function OnboardingPage11({
   const cardClasses = formData.legalStatus.isSexOffender ? 
     "border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all duration-700" : 
     "transition-all duration-700";
+
+  const handleSubmit = async () => {
+    const now = new Date();
+    const signatureId = generateCriminalHistorySignatureId();
+    
+    // Update signature for criminal history disclosure
+    const updatedSignatures = updateSignature(formData.signatures, 'criminal_history', {
+      signature: formData.firstName + ' ' + formData.lastName,
+      signatureTimestamp: now.toISOString(),
+      signatureId,
+      updates: {
+        legalStatus: formData.legalStatus,
+        pendingCharges,
+        convictions
+      }
+    });
+    
+    handleSelectChange('signatures', updatedSignatures);
+
+    // Generate PDF with criminal history information
+    const response = await fetch('/api/generate-pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        documentType: 'criminal_history',
+        signatureId,
+        legalStatus: formData.legalStatus,
+        pendingCharges,
+        convictions
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to generate PDF');
+      return;
+    }
+
+    // Handle PDF download
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'criminal_history_disclosure.pdf';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    // Continue with navigation
+    router.push('/onboarding/12');
+  };
 
   return (
     <div className="space-y-8">
@@ -280,84 +366,68 @@ export default function OnboardingPage11({
             Signature & Acknowledgment
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <p className="text-sm font-semibold text-red-600">
-            **FAILURE TO COMPLETE THIS FORM ACCURATELY AND TRUTHFULLY WILL LEAD TO YOUR DISCHARGE FROM THE JOURNEY HOUSE, LLC (&quot;JOURNEY HOUSE&quot;). JOURNEY HOUSE WILL REPORT ALL THOSE IN VIOLATION OF APPLICABLE LAWS AND REGULATIONS AS REQUIRED BY LAWS AND REGULATIONS.**
-          </p>
+        <CardContent>
+          <div className="space-y-6">
+            <p className="text-sm font-semibold text-red-600">
+              **FAILURE TO COMPLETE THIS FORM ACCURATELY AND TRUTHFULLY WILL LEAD TO YOUR DISCHARGE FROM THE JOURNEY HOUSE, LLC ("JOURNEY HOUSE"). JOURNEY HOUSE WILL REPORT ALL THOSE IN VIOLATION OF APPLICABLE LAWS AND REGULATIONS AS REQUIRED BY LAWS AND REGULATIONS.**
+            </p>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <Label htmlFor="criminalHistorySignature">Resident Signature</Label>
+            <div>
+              <Label htmlFor="residentSignature">Resident Signature</Label>
               <Input
-                id="criminalHistorySignature"
-                name="signatures"
-                value={formData.signatures.find(s => s.signatureType === 'criminal_history')?.signature || ''}
-                onChange={(e) => {
-                  const now = new Date();
-                  const signatureId = generateSignatureId();
-                  const newSignature = {
-                    signatureType: 'criminal_history' as const,
-                    signature: e.target.value,
-                    signatureTimestamp: now.toISOString(),
-                    signatureId
-                  };
-                  handleSelectChange('signatures', [
-                    ...formData.signatures.filter(s => s.signatureType !== 'criminal_history'),
-                    newSignature
-                  ]);
-                }}
-                required
-                placeholder="Type your full legal name to sign"
-                className="bg-white"
+                id="residentSignature"
+                value={formData.firstName + ' ' + formData.lastName}
+                disabled
+                className="bg-gray-50"
               />
-              {formData.signatures.find(s => s.signatureType === 'criminal_history')?.signatureTimestamp && (
-                <p className="text-sm text-gray-500">
-                  Signed: {new Date(formData.signatures.find(s => s.signatureType === 'criminal_history')?.signatureTimestamp || '').toLocaleString()}
-                </p>
-              )}
+              <p className="text-sm text-gray-600 mt-2">
+                By signing this document, you certify that all information provided is true and accurate.
+              </p>
             </div>
 
-            <div className="space-y-4">
-              <Label htmlFor="criminalHistoryWitnessSignature">Witness Signature</Label>
+            <div>
+              <Label htmlFor="witnessSignature">Witness Signature</Label>
               <Input
-                id="criminalHistoryWitnessSignature"
-                name="signatures"
-                value={formData.signatures.find(s => s.signatureType === 'criminal_history')?.witnessSignature || ''}
+                id="witnessSignature"
+                value={getSignature(formData.signatures, 'criminal_history')?.witnessSignature || ''}
                 onChange={(e) => {
                   const now = new Date();
-                  const currentSignature = formData.signatures.find(s => s.signatureType === 'criminal_history');
-                  if (currentSignature) {
-                    const updatedSignature = {
-                      ...currentSignature,
-                      witnessSignature: e.target.value,
-                      witnessTimestamp: now.toISOString()
-                    };
-                    handleSelectChange('signatures', [
-                      ...formData.signatures.filter(s => s.signatureType !== 'criminal_history'),
-                      updatedSignature
-                    ]);
-                  }
+                  const updatedSignatures = updateSignature(formData.signatures, 'criminal_history', {
+                    witnessSignature: e.target.value,
+                    witnessTimestamp: e.target.value ? now.toISOString() : undefined
+                  });
+                  handleSelectChange('signatures', updatedSignatures);
                 }}
-                required
-                disabled={!formData.signatures.find(s => s.signatureType === 'criminal_history')?.signature}
                 placeholder="Witness full legal name"
                 className="bg-white"
               />
-              {formData.signatures.find(s => s.signatureType === 'criminal_history')?.witnessTimestamp && (
-                <p className="text-sm text-gray-500">
-                  Witnessed: {new Date(formData.signatures.find(s => s.signatureType === 'criminal_history')?.witnessTimestamp || '').toLocaleString()}
+              <p className="text-sm text-gray-600 mt-2">
+                As a witness, your signature verifies that you observed the resident sign this document.
+              </p>
+              {getSignature(formData.signatures, 'criminal_history')?.witnessTimestamp && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Witnessed: {new Date(getSignature(formData.signatures, 'criminal_history')?.witnessTimestamp || '').toLocaleString()}
                 </p>
               )}
             </div>
-          </div>
 
-          {formData.signatures.find(s => s.signatureType === 'criminal_history')?.signatureId && (
-            <div className="text-center">
-              <p className="text-sm text-gray-500">
-                Document ID: {formData.signatures.find(s => s.signatureType === 'criminal_history')?.signatureId}
-              </p>
-            </div>
-          )}
+            {getSignature(formData.signatures, 'criminal_history')?.signatureId && (
+              <div className="text-center pt-4 border-t">
+                <p className="text-sm text-gray-500">
+                  Document ID: {getSignature(formData.signatures, 'criminal_history')?.signatureId}
+                </p>
+              </div>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSubmit}
+              className="w-full"
+            >
+              Submit and Generate PDF
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,0 +1,23 @@
+# CRIMINAL HISTORY DISCLOSURE
+
+**FAILURE TO COMPLETE THIS FORM ACCURATELY AND TRUTHFULLY WILL LEAD TO YOUR DISCHARGE FROM THE JOURNEY HOUSE, LLC ("JOURNEY HOUSE"). JOURNEY HOUSE WILL REPORT ALL THOSE IN VIOLATION OF APPLICABLE LAWS AND REGULATIONS AS REQUIRED BY LAWS AND REGULATIONS.**
+
+## Legal Status Summary
+
+[LEGAL_STATUS_SUMMARY]
+
+## Pending Charges
+
+[PENDING_CHARGES]
+
+## Prior Convictions
+
+[CONVICTIONS]
+
+## Additional Information
+
+[ADDITIONAL_INFO]
+
+---
+
+I hereby certify that the information provided above is true and complete to the best of my knowledge.  

@@ -11,6 +11,7 @@ from io import BytesIO
 import json
 from reportlab.graphics.shapes import Drawing, Rect
 from reportlab.graphics import renderPDF
+import markdown
 
 app = func.FunctionApp()
 
@@ -156,6 +157,77 @@ def create_drug_screen_section(drug_test_results):
 
     return elements
 
+def create_medication_table(medications, mat_medications=None):
+    """Create a table for medications with proper formatting."""
+    data = [['Medication', 'Type', 'Notes']]
+    
+    # Add MAT medications if present
+    if mat_medications:
+        for med in mat_medications:
+            data.append([
+                med.get('name', ''),
+                'MAT',
+                med.get('notes', '')
+            ])
+    
+    # Add regular medications
+    if medications:
+        for med in medications:
+            data.append([
+                med.get('name', ''),
+                'Regular',
+                med.get('notes', '')
+            ])
+    
+    # Ensure minimum table size
+    while len(data) < 4:
+        data.append(['', '', ''])
+    
+    style = TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ])
+    
+    table = Table(data, colWidths=[2*inch, 1.5*inch, 3*inch])
+    table.setStyle(style)
+    return table
+
+def create_authorized_people_table(authorized_people):
+    """Create a table for authorized people with proper formatting."""
+    data = [['Name', 'Relationship', 'Phone']]
+    
+    if authorized_people:
+        for person in authorized_people:
+            full_name = f"{person.get('firstName', '')} {person.get('lastName', '')}".strip()
+            data.append([
+                full_name,
+                person.get('relationship', '').capitalize(),
+                person.get('phone', '')
+            ])
+    
+    # Ensure minimum table size
+    while len(data) < 4:
+        data.append(['', '', ''])
+    
+    style = TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ])
+    
+    table = Table(data, colWidths=[2.5*inch, 2*inch, 2*inch])
+    table.setStyle(style)
+    return table
+
 @app.function_name(name="generatePDF")
 @app.route(route="generatepdf", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def generate_pdf(req: func.HttpRequest) -> func.HttpResponse:
@@ -173,291 +245,582 @@ def generate_pdf(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         req_body = req.get_json()
+        document_type = req_body.get('documentType', '')
+        
+        # At the start of the generate_pdf function
+        logging.info(f"Received request for document type: {document_type}")
+        logging.info(f"Current working directory: {os.getcwd()}")
+        logging.info(f"Directory contents: {os.listdir('.')}")
+        
+        # Common data
+        first_name = req_body.get('firstName', '')
+        last_name = req_body.get('lastName', '')
+        full_name = f"{first_name} {last_name}".strip()
+        
+        # Set up the document
         buffer = BytesIO()
-
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=72,
-            leftMargin=72,
-            topMargin=72,
-            bottomMargin=72
-        )
-
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
         styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            alignment=1,
-            spaceAfter=30,
-            fontSize=18,
-            textColor=colors.black,
-        )
-        section_style = ParagraphStyle(
-            'SectionHeader',
-            parent=styles['Heading2'],
-            fontSize=14,
-            spaceBefore=20,
-            spaceAfter=12,
-            textColor = colors.black,
-            fontName='Helvetica-Bold'
-        )
-        normal_style = ParagraphStyle(
-            'CustomNormal',
-            parent=styles['Normal'],
-            fontSize=11,
-            leading=16
-        )
-        centered_style = ParagraphStyle(
-            'Centered',
-            parent=styles['Normal'],
-            alignment=1,
-            fontSize=11
-        )
-
-        indented_style = ParagraphStyle(
-            'Indented',
-            parent=styles['Normal'],
-            leftIndent=36,
-            fontSize=11,
-            leading=16
-        )
-
-        legal_status_style = ParagraphStyle(
-            'LegalStatus',
-            parent=styles['Normal'],
-            fontSize=11,
-            leading=16,
-            leftIndent=12,  # Slight indent
-        )
-
         elements = []
-
-        # --- Logo (Smaller) ---
-        logo_path = os.path.join(os.path.dirname(__file__), 'assets', 'JourneyHouseLogo.png')
+        
+        # Add logo if it exists
+        logo_path = "logo.png"
         if os.path.exists(logo_path):
-            img = Image(logo_path)
-            aspect = img.imageWidth / float(img.imageHeight)
-            target_width = 2 * inch  # Reduced size
-            img.drawWidth = target_width
-            img.drawHeight = target_width / aspect
-            elements.append(img)
-            elements.append(Spacer(1, 12))
+            elements.append(Image(logo_path, width=200, height=100))
+            elements.append(Spacer(1, 20))
+        
+        if document_type == 'resident_as_guest':
+            # Read and process the resident as guest agreement
+            try:
+                logging.info(f"Attempting to read from agreements/{document_type}.md")
+                logging.info(f"Agreements directory contents: {os.listdir('agreements')}")
+                with open('agreements/resident_as_guest.md', 'r') as file:
+                    content = file.read()
+                    # Replace the resident name placeholder
+                    content = content.replace('[RESIDENT_NAME]', full_name)
+                    
+                    # Convert markdown to HTML
+                    html = markdown.markdown(content)
+                    
+                    # Process the content
+                    for line in html.split('\n'):
+                        if line.strip():
+                            if line.startswith('<h1>'):
+                                elements.append(Paragraph(line[4:-5], styles['Title']))
+                            elif line.startswith('<h2>'):
+                                elements.append(Paragraph(line[4:-5], styles['Heading2']))
+                            else:
+                                elements.append(Paragraph(line, styles['Normal']))
+                            elements.append(Spacer(1, 12))
+                    
+                    # Add signature section with detailed timestamp
+                    elements.append(Spacer(1, 20))
+                    
+                    # Get current timestamp from request body
+                    signature_timestamp = req_body.get('signatureTimestamp', '')
+                    witness_timestamp = req_body.get('witnessTimestamp', '')
+                    
+                    # Format timestamps if present
+                    formatted_sig_time = ''
+                    formatted_wit_time = ''
+                    if signature_timestamp:
+                        try:
+                            from datetime import datetime
+                            sig_dt = datetime.fromisoformat(signature_timestamp.replace('Z', '+00:00'))
+                            formatted_sig_time = sig_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_sig_time = signature_timestamp
+                    
+                    if witness_timestamp:
+                        try:
+                            wit_dt = datetime.fromisoformat(witness_timestamp.replace('Z', '+00:00'))
+                            formatted_wit_time = wit_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_wit_time = witness_timestamp
 
+                    # Enhanced signature table with timestamps
+                    signature_table = Table([
+                        ['Resident Signature:', '_' * 40, 'Date:', formatted_sig_time or '_' * 30],
+                        ['Witness Signature:', '_' * 40, 'Date:', formatted_wit_time or '_' * 30]
+                    ], colWidths=[100, 200, 50, 150])
+                    
+                    signature_table.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                    ]))
+                    
+                    elements.append(signature_table)
+                    
+                    # Add signature ID if present
+                    signature_id = req_body.get('signatureId', '')
+                    if signature_id:
+                        elements.append(Spacer(1, 12))
+                        elements.append(Paragraph(f"Document ID: {signature_id}", ParagraphStyle(
+                            'SignatureID',
+                            parent=styles['Normal'],
+                            alignment=1,  # Center alignment
+                            fontSize=8,
+                            textColor=colors.gray
+                        )))
+                    
+                    # Add page break after each form
+                    elements.append(PageBreak())
 
-        elements.append(Paragraph("Intake Form Summary", title_style))
+        elif document_type == 'contract_terms':
+            # Read and process the contract terms
+            try:
+                logging.info(f"Attempting to read from agreements/{document_type}.md")
+                logging.info(f"Agreements directory contents: {os.listdir('agreements')}")
+                with open('agreements/contract_terms.md', 'r') as file:
+                    content = file.read()
+                    
+                    # Convert markdown to HTML
+                    html = markdown.markdown(content)
+                    
+                    # Process the content
+                    for line in html.split('\n'):
+                        if line.strip():
+                            if line.startswith('<h1>'):
+                                elements.append(Paragraph(line[4:-5], styles['Title']))
+                            elif line.startswith('<h2>'):
+                                elements.append(Paragraph(line[4:-5], styles['Heading2']))
+                            else:
+                                elements.append(Paragraph(line, styles['Normal']))
+                            elements.append(Spacer(1, 12))
+                    
+                    # Add signature section with detailed timestamp
+                    elements.append(Spacer(1, 20))
+                    
+                    # Get current timestamp from request body
+                    signature_timestamp = req_body.get('signatureTimestamp', '')
+                    witness_timestamp = req_body.get('witnessTimestamp', '')
+                    
+                    # Format timestamps if present
+                    formatted_sig_time = ''
+                    formatted_wit_time = ''
+                    if signature_timestamp:
+                        try:
+                            from datetime import datetime
+                            sig_dt = datetime.fromisoformat(signature_timestamp.replace('Z', '+00:00'))
+                            formatted_sig_time = sig_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_sig_time = signature_timestamp
+                    
+                    if witness_timestamp:
+                        try:
+                            wit_dt = datetime.fromisoformat(witness_timestamp.replace('Z', '+00:00'))
+                            formatted_wit_time = wit_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_wit_time = witness_timestamp
 
-        # --- Personal Information (Structured) ---
-        elements.append(Paragraph("Personal Information", section_style))
-        personal_info_data = [
-            [Paragraph("<b>Name:</b>", normal_style), f"{req_body.get('firstName', '')} {req_body.get('lastName', '')}"],
-            [Paragraph("<b>Date of Birth:</b>", normal_style), req_body.get('dateOfBirth', '')],
-            [Paragraph("<b>Intake Date:</b>", normal_style), req_body.get('intakeDate', '')],
-            [Paragraph("<b>Housing Location:</b>", normal_style), req_body.get('housingLocation', '').capitalize()],
-            [Paragraph("<b>Email:</b>", normal_style), req_body.get('email', '')],
-            [Paragraph("<b>Phone:</b>", normal_style), req_body.get('phone', '')],  # Added phone number
-        ]
-        personal_info_table = Table(personal_info_data, colWidths=[1.5*inch, 5*inch])
-        personal_info_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ]))
-        elements.append(personal_info_table)
+                    # Enhanced signature table with timestamps
+                    signature_table = Table([
+                        ['Resident Signature:', '_' * 40, 'Date:', formatted_sig_time or '_' * 30],
+                        ['Witness Signature:', '_' * 40, 'Date:', formatted_wit_time or '_' * 30]
+                    ], colWidths=[100, 200, 50, 150])
+                    
+                    signature_table.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                    ]))
+                    
+                    elements.append(signature_table)
+                    
+                    # Add signature ID if present
+                    signature_id = req_body.get('signatureId', '')
+                    if signature_id:
+                        elements.append(Spacer(1, 12))
+                        elements.append(Paragraph(f"Document ID: {signature_id}", ParagraphStyle(
+                            'SignatureID',
+                            parent=styles['Normal'],
+                            alignment=1,  # Center alignment
+                            fontSize=8,
+                            textColor=colors.gray
+                        )))
+                    
+                    # Add page break after each form
+                    elements.append(PageBreak())
 
+        elif document_type == 'criminal_history':
+            # Read and process the criminal history template
+            try:
+                logging.info(f"Attempting to read from agreements/{document_type}.md")
+                logging.info(f"Agreements directory contents: {os.listdir('agreements')}")
+                with open('agreements/criminal_history.md', 'r') as file:
+                    content = file.read()
+                    
+                    # Create Legal Status Summary
+                    legal_status = []
+                    if req_body.get('legalStatus', {}).get('hasPendingCharges'):
+                        legal_status.append("- Currently has pending charges")
+                    if req_body.get('legalStatus', {}).get('hasConvictions'):
+                        legal_status.append("- Has prior convictions")
+                    if req_body.get('legalStatus', {}).get('isWanted'):
+                        legal_status.append("- Currently wanted by law enforcement")
+                    if req_body.get('legalStatus', {}).get('isOnBond'):
+                        bondsman = req_body.get('legalStatus', {}).get('bondsmanName', '')
+                        legal_status.append(f"- Currently out on bond (Bondsman: {bondsman})")
+                    
+                    if not legal_status:
+                        legal_status = ["No current legal issues reported."]
+                    
+                    content = content.replace('[LEGAL_STATUS_SUMMARY]', '\n'.join(legal_status))
+                    
+                    # Create Pending Charges Section
+                    pending_charges = req_body.get('pendingCharges', [])
+                    if pending_charges and req_body.get('legalStatus', {}).get('hasPendingCharges'):
+                        charges_text = []
+                        for i, charge in enumerate(pending_charges, 1):
+                            desc = charge.get('chargeDescription', '').strip()
+                            loc = charge.get('location', '').strip()
+                            if desc or loc:
+                                charges_text.append(f"{i}. {desc}")
+                                if loc:
+                                    charges_text.append(f"   Location: {loc}")
+                                charges_text.append("")
+                        charges_content = '\n'.join(charges_text) if charges_text else "No specific charges listed."
+                    else:
+                        charges_content = "No pending charges reported."
+                    
+                    content = content.replace('[PENDING_CHARGES]', charges_content)
+                    
+                    # Create Convictions Section
+                    convictions = req_body.get('convictions', [])
+                    if convictions and req_body.get('legalStatus', {}).get('hasConvictions'):
+                        conv_text = []
+                        for i, conviction in enumerate(convictions, 1):
+                            offense = conviction.get('offense', '').strip()
+                            if offense:
+                                conv_text.append(f"{i}. {offense}")
+                        conv_content = '\n'.join(conv_text) if conv_text else "No specific convictions listed."
+                    else:
+                        conv_content = "No prior convictions reported."
+                    
+                    content = content.replace('[CONVICTIONS]', conv_content)
+                    
+                    # Create Additional Information Section
+                    additional_info = []
+                    if req_body.get('legalStatus', {}).get('isWanted'):
+                        additional_info.append("- Individual reports being wanted by law enforcement or government agency")
+                    if req_body.get('legalStatus', {}).get('isOnBond'):
+                        bondsman = req_body.get('legalStatus', {}).get('bondsmanName', '')
+                        additional_info.append(f"- Currently out on bond")
+                        if bondsman:
+                            additional_info.append(f"  Bondsman: {bondsman}")
+                    
+                    if not additional_info:
+                        additional_info = ["No additional legal information to report."]
+                    
+                    content = content.replace('[ADDITIONAL_INFO]', '\n'.join(additional_info))
+                    
+                    # Convert markdown to HTML
+                    html = markdown.markdown(content)
+                    
+                    # Process the content
+                    for line in html.split('\n'):
+                        if line.strip():
+                            if line.startswith('<h1>'):
+                                elements.append(Paragraph(line[4:-5], styles['Title']))
+                            elif line.startswith('<h2>'):
+                                elements.append(Paragraph(line[4:-5], styles['Heading2']))
+                            else:
+                                elements.append(Paragraph(line, styles['Normal']))
+                            elements.append(Spacer(1, 12))
+                    
+                    # Add signature section with detailed timestamp
+                    elements.append(Spacer(1, 20))
+                    
+                    # Get current timestamp from request body
+                    signature_timestamp = req_body.get('signatureTimestamp', '')
+                    witness_timestamp = req_body.get('witnessTimestamp', '')
+                    
+                    # Format timestamps if present
+                    formatted_sig_time = ''
+                    formatted_wit_time = ''
+                    if signature_timestamp:
+                        try:
+                            from datetime import datetime
+                            sig_dt = datetime.fromisoformat(signature_timestamp.replace('Z', '+00:00'))
+                            formatted_sig_time = sig_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_sig_time = signature_timestamp
+                    
+                    if witness_timestamp:
+                        try:
+                            wit_dt = datetime.fromisoformat(witness_timestamp.replace('Z', '+00:00'))
+                            formatted_wit_time = wit_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_wit_time = witness_timestamp
 
-        # --- Insurance Information ---
-        elements.append(Paragraph("Insurance Information", section_style))
-        if req_body.get('insurances'):
-            for insurance in req_body['insurances']:
-                elements.append(Paragraph(
-                    f"<b>Type:</b> {insurance.get('insuranceType', '').capitalize()}<br/>"
-                    f"<b>Policy Number:</b> {insurance.get('policyNumber', '')}",
-                    normal_style
-                ))
-                elements.append(Spacer(1, 6))
-        else:
-            elements.append(Paragraph("No insurance information provided", normal_style))
+                    # Enhanced signature table with timestamps
+                    signature_table = Table([
+                        ['Resident Signature:', '_' * 40, 'Date:', formatted_sig_time or '_' * 30],
+                        ['Witness Signature:', '_' * 40, 'Date:', formatted_wit_time or '_' * 30]
+                    ], colWidths=[100, 200, 50, 150])
+                    
+                    signature_table.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                    ]))
+                    
+                    elements.append(signature_table)
+                    
+                    # Add signature ID if present
+                    signature_id = req_body.get('signatureId', '')
+                    if signature_id:
+                        elements.append(Spacer(1, 12))
+                        elements.append(Paragraph(f"Document ID: {signature_id}", ParagraphStyle(
+                            'SignatureID',
+                            parent=styles['Normal'],
+                            alignment=1,  # Center alignment
+                            fontSize=8,
+                            textColor=colors.gray
+                        )))
+                    
+                    # Add page break after each form
+                    elements.append(PageBreak())
 
-        # --- Emergency Contact ---
-        elements.append(Paragraph("Emergency Contact", section_style))
-        if 'emergencyContact' in req_body:
-            ec = req_body['emergencyContact']
-            elements.append(Paragraph(
-                f"<b>Name:</b> {ec.get('firstName', '')} {ec.get('lastName', '')}<br/>"
-                f"<b>Relationship:</b> {ec.get('relationship', '').capitalize()}<br/>"
-                f"<b>Phone:</b> {ec.get('phone', '')}",
-                normal_style
-            ))
+        elif document_type == 'ethics':
+            # Read and process the ethics agreement
+            try:
+                logging.info(f"Attempting to read from agreements/{document_type}.md")
+                logging.info(f"Agreements directory contents: {os.listdir('agreements')}")
+                with open('agreements/ethics_agreement.md', 'r') as file:
+                    content = file.read()
+                    
+                    # Convert markdown to HTML
+                    html = markdown.markdown(content)
+                    
+                    # Process the content
+                    for line in html.split('\n'):
+                        if line.strip():
+                            if line.startswith('<h1>'):
+                                elements.append(Paragraph(line[4:-5], styles['Title']))
+                            elif line.startswith('<h2>'):
+                                elements.append(Paragraph(line[4:-5], styles['Heading2']))
+                            else:
+                                elements.append(Paragraph(line, styles['Normal']))
+                            elements.append(Spacer(1, 12))
+                    
+                    # Add signature section with detailed timestamp
+                    elements.append(Spacer(1, 20))
+                    
+                    # Get current timestamp from request body
+                    signature_timestamp = req_body.get('signatureTimestamp', '')
+                    witness_timestamp = req_body.get('witnessTimestamp', '')
+                    
+                    # Format timestamps if present
+                    formatted_sig_time = ''
+                    formatted_wit_time = ''
+                    if signature_timestamp:
+                        try:
+                            from datetime import datetime
+                            sig_dt = datetime.fromisoformat(signature_timestamp.replace('Z', '+00:00'))
+                            formatted_sig_time = sig_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_sig_time = signature_timestamp
+                    
+                    if witness_timestamp:
+                        try:
+                            wit_dt = datetime.fromisoformat(witness_timestamp.replace('Z', '+00:00'))
+                            formatted_wit_time = wit_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_wit_time = witness_timestamp
 
-        # --- Legal Status ---
-        elements.append(Paragraph("Legal Status", section_style))
-        legal_status = req_body.get('legalStatus', {})
+                    # Enhanced signature table with timestamps
+                    signature_table = Table([
+                        ['Resident Signature:', '_' * 40, 'Date:', formatted_sig_time or '_' * 30],
+                        ['Witness Signature:', '_' * 40, 'Date:', formatted_wit_time or '_' * 30]
+                    ], colWidths=[100, 200, 50, 150])
+                    
+                    signature_table.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                    ]))
+                    
+                    elements.append(signature_table)
+                    
+                    # Add signature ID if present
+                    signature_id = req_body.get('signatureId', '')
+                    if signature_id:
+                        elements.append(Spacer(1, 12))
+                        elements.append(Paragraph(f"Document ID: {signature_id}", ParagraphStyle(
+                            'SignatureID',
+                            parent=styles['Normal'],
+                            alignment=1,  # Center alignment
+                            fontSize=8,
+                            textColor=colors.gray
+                        )))
+                    
+                    # Add page break after each form
+                    elements.append(PageBreak())
 
-        if legal_status.get('hasProbation'):
-            elements.append(Paragraph(f"Probation - {legal_status.get('jurisdiction', '').capitalize()}", legal_status_style))
+        elif document_type == 'critical_rules':
+            # Read and process the critical rules
+            try:
+                logging.info(f"Attempting to read from agreements/{document_type}.md")
+                logging.info(f"Agreements directory contents: {os.listdir('agreements')}")
+                with open('agreements/critical_rules.md', 'r') as file:
+                    content = file.read()
+                    
+                    # Convert markdown to HTML
+                    html = markdown.markdown(content, extensions=['markdown.extensions.tables'])
+                    
+                    # Process the content
+                    for line in html.split('\n'):
+                        if line.strip():
+                            if line.startswith('<h1>'):
+                                elements.append(Paragraph(line[4:-5], styles['Title']))
+                            elif line.startswith('<h2>'):
+                                elements.append(Paragraph(line[4:-5], styles['Heading2']))
+                            elif line.startswith('<h3>'):
+                                elements.append(Paragraph(line[4:-5], styles['Heading3']))
+                            else:
+                                elements.append(Paragraph(line, styles['Normal']))
+                            elements.append(Spacer(1, 12))
+                    
+                    # Add signature section with detailed timestamp
+                    elements.append(Spacer(1, 20))
+                    
+                    # Get current timestamp from request body
+                    signature_timestamp = req_body.get('signatureTimestamp', '')
+                    witness_timestamp = req_body.get('witnessTimestamp', '')
+                    
+                    # Format timestamps if present
+                    formatted_sig_time = ''
+                    formatted_wit_time = ''
+                    if signature_timestamp:
+                        try:
+                            from datetime import datetime
+                            sig_dt = datetime.fromisoformat(signature_timestamp.replace('Z', '+00:00'))
+                            formatted_sig_time = sig_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_sig_time = signature_timestamp
+                    
+                    if witness_timestamp:
+                        try:
+                            wit_dt = datetime.fromisoformat(witness_timestamp.replace('Z', '+00:00'))
+                            formatted_wit_time = wit_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_wit_time = witness_timestamp
 
-        if legal_status.get('hasPretrial'):
-             elements.append(Paragraph(f"Pretrial - {legal_status.get('jurisdiction', '').capitalize()}", legal_status_style))
+                    # Enhanced signature table with timestamps
+                    signature_table = Table([
+                        ['Resident Signature:', '_' * 40, 'Date:', formatted_sig_time or '_' * 30],
+                        ['Witness Signature:', '_' * 40, 'Date:', formatted_wit_time or '_' * 30]
+                    ], colWidths=[100, 200, 50, 150])
+                    
+                    signature_table.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                    ]))
+                    
+                    elements.append(signature_table)
+                    
+                    # Add signature ID if present
+                    signature_id = req_body.get('signatureId', '')
+                    if signature_id:
+                        elements.append(Spacer(1, 12))
+                        elements.append(Paragraph(f"Document ID: {signature_id}", ParagraphStyle(
+                            'SignatureID',
+                            parent=styles['Normal'],
+                            alignment=1,  # Center alignment
+                            fontSize=8,
+                            textColor=colors.gray
+                        )))
+                    
+                    # Add page break after each form
+                    elements.append(PageBreak())
 
-        if not legal_status.get('hasProbation') and not legal_status.get('hasPretrial'):
-            elements.append(Paragraph("No Probation or Pretrial", legal_status_style))
+        elif document_type == 'house_rules':
+            # Read and process the house rules
+            try:
+                logging.info(f"Attempting to read from agreements/{document_type}.md")
+                logging.info(f"Agreements directory contents: {os.listdir('agreements')}")
+                with open('agreements/house_rules.md', 'r') as file:
+                    content = file.read()
+                    
+                    # Convert markdown to HTML with extensions for better formatting
+                    html = markdown.markdown(content, extensions=['markdown.extensions.tables'])
+                    
+                    # Process the content
+                    for line in html.split('\n'):
+                        if line.strip():
+                            if line.startswith('<h1>'):
+                                elements.append(Paragraph(line[4:-5], styles['Title']))
+                            elif line.startswith('<h2>'):
+                                elements.append(Paragraph(line[4:-5], styles['Heading2']))
+                            elif line.startswith('<h3>'):
+                                elements.append(Paragraph(line[4:-5], styles['Heading3']))
+                            else:
+                                elements.append(Paragraph(line, styles['Normal']))
+                            elements.append(Spacer(1, 12))
+                    
+                    # Add signature section with detailed timestamp
+                    elements.append(Spacer(1, 20))
+                    
+                    # Get current timestamp from request body
+                    signature_timestamp = req_body.get('signatureTimestamp', '')
+                    witness_timestamp = req_body.get('witnessTimestamp', '')
+                    
+                    # Format timestamps if present
+                    formatted_sig_time = ''
+                    formatted_wit_time = ''
+                    if signature_timestamp:
+                        try:
+                            from datetime import datetime
+                            sig_dt = datetime.fromisoformat(signature_timestamp.replace('Z', '+00:00'))
+                            formatted_sig_time = sig_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_sig_time = signature_timestamp
+                    
+                    if witness_timestamp:
+                        try:
+                            wit_dt = datetime.fromisoformat(witness_timestamp.replace('Z', '+00:00'))
+                            formatted_wit_time = wit_dt.strftime("%B %d, %Y at %I:%M:%S %p")
+                        except:
+                            formatted_wit_time = witness_timestamp
 
+                    # Enhanced signature table with timestamps
+                    signature_table = Table([
+                        ['Resident Signature:', '_' * 40, 'Date:', formatted_sig_time or '_' * 30],
+                        ['Witness Signature:', '_' * 40, 'Date:', formatted_wit_time or '_' * 30]
+                    ], colWidths=[100, 200, 50, 150])
+                    
+                    signature_table.setStyle(TableStyle([
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                    ]))
+                    
+                    elements.append(signature_table)
+                    
+                    # Add signature ID if present
+                    signature_id = req_body.get('signatureId', '')
+                    if signature_id:
+                        elements.append(Spacer(1, 12))
+                        elements.append(Paragraph(f"Document ID: {signature_id}", ParagraphStyle(
+                            'SignatureID',
+                            parent=styles['Normal'],
+                            alignment=1,  # Center alignment
+                            fontSize=8,
+                            textColor=colors.gray
+                        )))
+                    
+                    # Add page break after each form
+                    elements.append(PageBreak())
 
-
-        # --- Medications ---
-        elements.append(Paragraph("Medications", section_style))
-        if req_body.get('medications'):
-            for med in req_body['medications']:
-                elements.append(Paragraph(f"• {med}", normal_style))
-        else:
-            elements.append(Paragraph("No medications listed", normal_style))
-
-        # --- Page Break BEFORE Combined Signatures ---
-        elements.append(PageBreak())
-
-       # --- Combined Signatures and Legal Text (Single Page) ---
-        elements.append(Paragraph("Consent and Agreement", section_style)) #Combined Heading
-
-        if req_body.get('signatures'):
-            for sig in req_body['signatures']:
-                elements.append(Paragraph(
-                    f"Signature ID: {sig.get('signatureId', '')} - {sig.get('signatureType', '').replace('_', ' ').title()}",
-                    centered_style
-                ))
-                elements.append(Spacer(1, 6))
-
-        elements.append(Spacer(1, 20))
-        legal_text = """By signing below, I hereby declare that:
-
-1.  All information provided in this intake form is true, accurate, and complete to the best of my knowledge.
-2.  I understand that providing false information may result in immediate termination of services and potential legal consequences.
-3.  I acknowledge that my electronic signature on this document is legally binding, carrying the same validity and enforceability as a handwritten signature.
-4.  I have been given the opportunity to review all information and ask questions before signing.
-5.  I consent to the collection, storage, and processing of the personal information provided in this form in accordance with applicable privacy laws.
-6.  I understand that this signed document will be stored securely and may be used as legal evidence of my consent and agreements."""
-
-        elements.append(Paragraph(legal_text, indented_style))
-
-        elements.append(Spacer(1, 20))
-        disclaimer_text = """I understand that the electronic signatures collected during this intake process are legally binding and equivalent to physical signatures. I acknowledge that these signatures represent my consent and agreement to all terms and conditions presented."""
-        elements.append(Paragraph(disclaimer_text, indented_style))
-
-        elements.append(Spacer(1, 30))
-        signature_table_final = Table([
-            ['_' * 30, '_' * 30],
-            ['Resident Name:', 'Resident Signature:'],
-        ], colWidths=[3*inch, 3*inch])
-
-        signature_table_final.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ]))
-        elements.append(signature_table_final)
-        # --- End Combined Signatures Page ---
-
-        # --- Page Break Before Recovery History ---
-        elements.append(PageBreak())
-
-        # --- Recovery History and Subsequent Sections (New Page) ---
-        elements.append(Paragraph("Recovery History", section_style))
-        if req_body.get('hasResidenceHistory') == 'yes':
-            elements.append(create_recovery_residence_table(req_body.get('recoveryResidences', [])))
-        else:elements.append(Paragraph("No previous recovery residence history", normal_style))
-        elements.append(Spacer(1, 20))
-
-        elements.append(Paragraph("Hospitalizations or Treatment", section_style))
-        if req_body.get('hasTreatmentHistory') == 'yes':
-            elements.append(create_hospitalization_table(req_body.get('treatmentHistory', [])))
-        else:
-            elements.append(Paragraph("No hospitalization or treatment history", normal_style))
-        elements.append(Spacer(1, 20))
-
-        elements.append(Paragraph("Incarceration", section_style))
-        if req_body.get('hasIncarcerationHistory') == 'yes':
-            elements.append(create_incarceration_table(req_body.get('incarcerationHistory', [])))
-        else:
-            elements.append(Paragraph("No incarceration history", normal_style))
-        elements.append(Spacer(1, 20))
-
-        elements.append(Paragraph("Criminal Supervision", section_style))
-        legal_status = req_body.get('legalStatus', {})
-
-        if legal_status.get('hasProbation'):
-            elements.append(Paragraph(f"Probation - {legal_status.get('jurisdiction', '').capitalize()}", legal_status_style))
-
-        if legal_status.get('hasPretrial'):
-             elements.append(Paragraph(f"Pretrial - {legal_status.get('jurisdiction', '').capitalize()}", legal_status_style))
-
-        if not legal_status.get('hasProbation') and not legal_status.get('hasPretrial'):
-            elements.append(Paragraph("No Probation or Pretrial", legal_status_style))
-
-        elements.append(PageBreak()) # Page break for drug screen
-        elements.append(Paragraph("Baseline Instant Screen", section_style))
-        elements.append(Paragraph(
-            "The baseline drug screen identifies what is in your system so that we can get you the help you need, "
-            "and we create milestones of improvement. Baselines are not reported to supervision unless "
-            "specifically requested.",
-            normal_style
-        ))
-
-        drug_test_elements = create_drug_screen_section(req_body.get('drugTestResults', {}))
-        elements.extend(drug_test_elements)
-
-        # Add signature lines *after* drug screen
-        elements.append(Spacer(1, 30))
-        signature_table = Table([
-            ['_' * 30, '_' * 30],
-            ['Resident Name:', 'Resident Signature:'],
-            ['', ''],
-            ['_' * 30, '_' * 30],
-            ['Witness Signature:', 'Date:']
-        ], colWidths=[3*inch, 3*inch])
-
-        signature_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ]))
-        elements.append(signature_table)
-
-        # Add document generation timestamp (Bottom Right)
-        elements.append(Spacer(1, 12))
-        elements.append(Paragraph(
-            f"Document generated on: {req_body.get('intakeDate', '')}",
-            ParagraphStyle(
-                'DateStamp',
-                parent=styles['Normal'],
-                fontSize=8,
-                textColor=colors.gray,
-                alignment=2  # Right alignment
-            )
-        ))
+        # Before building the PDF
+        logging.info(f"Number of elements to be added to PDF: {len(elements)}")
 
         # Build the PDF
         doc.build(elements)
-
+        
+        # Get the value of the BytesIO buffer
         pdf_bytes = buffer.getvalue()
         buffer.close()
-
+        
         return func.HttpResponse(
-            body=pdf_bytes,
+            pdf_bytes,
             mimetype="application/pdf",
             headers={
-                **CORS_HEADERS,
-                'Content-Disposition': f'attachment; filename="{req_body.get("lastName", "")}{req_body.get("firstName", "")}_Intake.pdf"'
-            },
-            status_code=200
+                "Content-Disposition": f"attachment; filename={document_type}.pdf"
+            }
         )
-
+        
     except Exception as e:
-        logging.error(f"Error generating PDF: {str(e)}")
         return func.HttpResponse(
             f"Error generating PDF: {str(e)}",
-            status_code=500,
-            headers=CORS_HEADERS
+            status_code=500
         )

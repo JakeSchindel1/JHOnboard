@@ -179,7 +179,9 @@ export type SignatureType =
   | 'ethics'
   | 'critical_rules'
   | 'house_rules'
-  | 'asam_assessment';
+  | 'asam_assessment'
+  | 'resident_as_guest'
+  | 'treat_others';
 
 export interface Signature {
   signatureType: SignatureType;
@@ -190,6 +192,7 @@ export interface Signature {
   witnessTimestamp?: string;
   witnessSignatureId?: string;
   agreed?: boolean;
+  updates?: Record<string, any>;
 }
 
 // Main Form Data Type

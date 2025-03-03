@@ -3,6 +3,7 @@ import { OnboardingSchema } from './schema'
 import sql, { ConnectionPool } from 'mssql'
 import { ParticipantService } from '@/services/participantService'
 import { logger } from '@/lib/logger'
+import { PowerAutomateService } from '@/services/powerAutomateService'
 
 // Global connection pool
 let pool: ConnectionPool | null = null;
@@ -73,6 +74,23 @@ export async function POST(request: Request) {
       const result = await participantService.createParticipant(validatedData);
       
       if (result.success) {
+        // Successfully saved to database, now send to Power Automate
+        try {
+          const powerAutomateService = new PowerAutomateService();
+          const paResult = await powerAutomateService.sendFormData(validatedData);
+          
+          if (!paResult.success) {
+            logger.warn('Power Automate submission failed but database save succeeded', {
+              error: paResult.error
+            });
+          } else {
+            logger.info('Power Automate flow triggered successfully');
+          }
+        } catch (paError) {
+          // Don't fail the overall request if Power Automate fails
+          logger.error('Error calling Power Automate flow', paError);
+        }
+        
         return NextResponse.json({
           success: true,
           message: result.message,

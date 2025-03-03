@@ -58,28 +58,16 @@ const LegalStatusSchema = z.object({
   isSexOffender: z.boolean()
 })
 
-const SignatureSchema = z.object({
-  signatureType: z.enum([
-    'emergency',
-    'medication',
-    'disclosure',
-    'treatment',
-    'price_consent',
-    'tenant_rights',
-    'contract_terms',
-    'criminal_history',
-    'ethics',
-    'critical_rules',
-    'house_rules',
-    'asam_assessment'
-  ]),
+export const SignatureSchema = z.object({
+  signatureType: z.enum(['house_rules', 'treat_others', 'disclosure', 'asam_assessment', 'resident_as_guest', 'criminal_history']),
   signature: z.string(),
-  signatureTimestamp: z.string().transform(str => new Date(str)),
   signatureId: z.string(),
+  signatureTimestamp: z.string().transform(str => new Date(str)),
   witnessSignature: z.string().optional(),
   witnessTimestamp: z.string().optional().transform(str => str ? new Date(str) : null),
   witnessSignatureId: z.string().optional(),
-  agreed: z.boolean().optional()
+  agreed: z.boolean().optional(),
+  updates: z.record(z.any()).optional()
 })
 
 export const OnboardingSchema = z.object({

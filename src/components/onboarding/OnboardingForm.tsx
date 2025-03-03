@@ -361,54 +361,131 @@ export default function OnboardingForm() {
     return errors;
   };
 
-  const FUNCTION_URL = process.env.NODE_ENV === 'development' 
- ? 'http://localhost:7071/api/generatepdf'
- : 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
-
   const downloadPDF = async (formData: FormData) => {
-  try {
-    const response = await fetch(FUNCTION_URL, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(formData)
-    });
+    try {
+      // Simple validation to ensure critical data is present
+      if (!formData.firstName || !formData.lastName || !formData.signatures) {
+        console.error('Missing critical data for PDF generation');
+        throw new Error('Form data is incomplete. Cannot generate PDF.');
+      }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`PDF generation failed: ${errorText}`);
+      // Try multiple function URL variants - the URL might be case-sensitive or have changed
+      const FUNCTION_URL_OPTIONS = [
+        'https://jhonboard-func.azurewebsites.net/api/generatepdf',
+        'https://jhonboard-func.azurewebsites.net/api/generatePDF',
+        // Try without 'api/' prefix which is sometimes not needed
+        'https://jhonboard-func.azurewebsites.net/generatepdf',
+        'https://jhonboard-func.azurewebsites.net/generatePDF'
+      ];
+      
+      if (process.env.NODE_ENV === 'development') {
+        FUNCTION_URL_OPTIONS.unshift('http://localhost:7071/api/generatepdf');
+      }
+
+      // Log information about what we're trying to do
+      console.log('PDF generation request starting...', {
+        urls: FUNCTION_URL_OPTIONS,
+        dataSize: JSON.stringify(formData).length,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        signatureCount: formData.signatures?.length || 0
+      });
+
+      // Create a deep copy of form data to ensure no reference issues
+      const formDataCopy = JSON.parse(JSON.stringify(formData));
+
+      // Try each URL in sequence until one works
+      let response = null;
+      let lastError = null;
+      let successUrl = null;
+
+      for (const url of FUNCTION_URL_OPTIONS) {
+        try {
+          console.log(`Trying function URL: ${url}`);
+          response = await fetch(url, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/pdf, application/octet-stream'
+            },
+            body: JSON.stringify(formDataCopy),
+            signal: AbortSignal.timeout(30000) // 30 second timeout per attempt
+          });
+          
+          if (response.ok) {
+            successUrl = url;
+            console.log(`Successfully connected to function at: ${url}`);
+            break;
+          } else {
+            console.warn(`Failed to connect to ${url}: ${response.status} ${response.statusText}`);
+          }
+        } catch (err) {
+          console.warn(`Error connecting to ${url}:`, err);
+          lastError = err;
+        }
+      }
+
+      if (!response || !response.ok) {
+        console.error('All function URLs failed. Last error:', lastError);
+        throw new Error(`PDF generation failed: Could not connect to PDF generation service. Please contact support.`);
+      }
+
+      // Log the response info for debugging
+      console.log('PDF generation response:', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type'),
+        contentLength: response.headers.get('content-length'),
+        successUrl
+      });
+
+      const blob = await response.blob();
+      
+      // Check the blob's size to ensure it's not empty
+      if (blob.size === 0) {
+        console.error('Empty PDF file received (zero bytes)');
+        throw new Error('Empty PDF file received (zero bytes)');
+      }
+
+      // Log blob details for debugging
+      console.log('PDF blob received:', {
+        type: blob.type,
+        size: blob.size
+      });
+
+      // Validate content type - be more flexible with content types
+      const validPdfTypes = ['application/pdf', 'application/octet-stream', 'binary/octet-stream'];
+      if (!validPdfTypes.includes(blob.type.toLowerCase())) {
+        console.warn(`Unexpected content type: ${blob.type}. Expected a PDF.`);
+      }
+
+      const firstName = (formData.firstName || '').trim();
+      const lastName = (formData.lastName || '').trim();
+      const filename = `${lastName}${firstName}_Intake.pdf`
+        .replace(/\s+/g, '')
+        .replace(/[^a-zA-Z0-9_.-]/g, '');
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Small delay before cleanup to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        console.log('PDF download completed successfully');
+      }, 100);
+
+      return true;
+    } catch (error) {
+      console.error('PDF download failed:', error);
+      toast.error(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return false;
     }
-
-    const blob = await response.blob();
-
-    if (blob.type !== 'application/pdf') {
-      throw new Error('Invalid PDF file received');
-    }
-
-    const firstName = (formData.firstName || '').trim();
-    const lastName = (formData.lastName || '').trim();
-    const filename = `${lastName}${firstName}_Intake.pdf`
-      .replace(/\s+/g, '')
-      .replace(/[^a-zA-Z0-9_.-]/g, '');
-
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-
-    return true;
-  } catch (error) {
-    console.error('PDF download failed:', error);
-    toast.error('Failed to download PDF');
-    return false;
-  }
   };
-
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -431,11 +508,28 @@ export default function OnboardingForm() {
       if (missingFields.length > 0) {
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
+      
+      // Create a deep copy of form data to avoid reference issues
+      const formDataCopy = JSON.parse(JSON.stringify(formData));
   
-      const result = await DataApiTransformer.createParticipantRecord(formData);
+      // Submit data to the API
+      console.log('Form submission starting...');
+      const result = await DataApiTransformer.createParticipantRecord(formDataCopy);
       
       if (result.success) {
-        await downloadPDF(formData);
+        console.log('Form submission successful, attempting to generate PDF...');
+        
+        try {
+          const pdfSuccess = await downloadPDF(formDataCopy);
+          if (!pdfSuccess) {
+            console.warn('Form submitted but PDF download had issues');
+            toast.warning('Your form was submitted successfully, but there was an issue generating the PDF. The Azure Function for PDF generation might need to be checked.');
+          }
+        } catch (pdfError) {
+          console.error('PDF generation error:', pdfError);
+          toast.warning('Your form was submitted successfully, but there was an issue generating the PDF. The Azure Function for PDF generation might need to be checked.');
+        }
+        
         router.push('/success');
       } else {
         throw new Error(result.message || 'Form submission failed');
