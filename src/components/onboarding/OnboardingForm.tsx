@@ -182,10 +182,16 @@ export default function OnboardingForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormState);
   const router = useRouter();
+  const [isRouterReady, setIsRouterReady] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentPage]);
+
+  // Set router as ready - App Router is always ready
+  useEffect(() => {
+    setIsRouterReady(true);
+  }, []);
 
   const handleInputChange: InputChangeHandler = (e) => {
     const { name, value, type, checked } = e.target;
@@ -530,7 +536,12 @@ export default function OnboardingForm() {
           toast.warning('Your form was submitted successfully, but there was an issue generating the PDF. The Azure Function for PDF generation might need to be checked.');
         }
         
-        router.push('/success');
+        // Safety check for router
+        if (isRouterReady) {
+          router.push('/success');
+        } else {
+          window.location.href = '/success';
+        }
       } else {
         throw new Error(result.message || 'Form submission failed');
       }
@@ -734,7 +745,14 @@ export default function OnboardingForm() {
             <Button variant="outline" onClick={() => setShowDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={() => router.push('/')}>
+            <Button onClick={() => {
+              if (isRouterReady) {
+                router.push('/');
+              } else {
+                // Fallback if router isn't ready
+                window.location.href = '/';
+              }
+            }}>
               Yes, return home
             </Button>
           </DialogFooter>
