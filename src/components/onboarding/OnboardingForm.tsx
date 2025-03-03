@@ -369,20 +369,20 @@ export default function OnboardingForm() {
         throw new Error('Form data is incomplete. Cannot generate PDF.');
       }
 
-      // Try multiple function URL variants - the URL might be case-sensitive or have changed
+      // Set the correct function URL - using the main site domain
+      // The site URL might have different endpoints for PDF generation
       const FUNCTION_URL_OPTIONS = [
-        'https://jhonboard-func.azurewebsites.net/api/generatepdf',
-        'https://jhonboard-func.azurewebsites.net/api/generatePDF',
-        // Try without 'api/' prefix which is sometimes not needed
-        'https://jhonboard-func.azurewebsites.net/generatepdf',
-        'https://jhonboard-func.azurewebsites.net/generatePDF'
+        'https://intake.journeyhouserecovery.org/api/generatepdf',
+        'https://intake.journeyhouserecovery.org/generatepdf',
+        // Try the base URL as a fallback
+        'https://intake.journeyhouserecovery.org/pdf'
       ];
       
       if (process.env.NODE_ENV === 'development') {
         FUNCTION_URL_OPTIONS.unshift('http://localhost:7071/api/generatepdf');
       }
 
-      // Log information about what we're trying to do
+      // Log the request info
       console.log('PDF generation request starting...', {
         urls: FUNCTION_URL_OPTIONS,
         dataSize: JSON.stringify(formData).length,
