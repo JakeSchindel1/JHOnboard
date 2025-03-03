@@ -175,26 +175,17 @@ const initialFormState: FormData = {
 };
 
 export default function OnboardingForm() {
-  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [showDialog, setShowDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [programInfoReviewed, setProgramInfoReviewed] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormState);
-  
+  const router = useRouter();
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentPage]);
-  
-  const navigateTo = (path: string) => {
-    try {
-      router.push(path);
-    } catch (error) {
-      console.warn('Router navigation failed, using fallback', error);
-      window.location.href = path;
-    }
-  };
 
   const handleInputChange: InputChangeHandler = (e) => {
     const { name, value, type, checked } = e.target;
@@ -370,131 +361,157 @@ export default function OnboardingForm() {
     return errors;
   };
 
+  const FUNCTION_URL = process.env.NEXT_PUBLIC_PDF_FUNCTION_URL 
+    || (process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:7071/api/generatepdf'
+        : 'https://jhonboard-func.azurewebsites.net/api/generatepdf');
+
+  // Determine the credentials mode based on the environment
+  const credentialsMode = process.env.NODE_ENV === 'development' 
+    ? 'include' // Use include for local development
+    : 'same-origin'; // Use same-origin for production
+
+  // Log the current environment and function URL for debugging
+  useEffect(() => {
+    console.log('Current environment:', process.env.NODE_ENV);
+    console.log('Using PDF function URL:', FUNCTION_URL);
+    console.log('Using credentials mode:', credentialsMode);
+  }, []);
+
   const downloadPDF = async (formData: FormData) => {
+  try {
+    console.log('Starting PDF download process...');
+    console.log('Using function URL:', FUNCTION_URL);
+    
+    // Make a test HEAD request first to check if the function is reachable
     try {
-      // Simple validation to ensure critical data is present
-      if (!formData.firstName || !formData.lastName || !formData.signatures) {
-        console.error('Missing critical data for PDF generation');
-        throw new Error('Form data is incomplete. Cannot generate PDF.');
-      }
-
-      // Set the correct function URL - using the main site domain
-      // The site URL might have different endpoints for PDF generation
-      const FUNCTION_URL_OPTIONS = [
-        'https://intake.journeyhouserecovery.org/api/generatepdf',
-        'https://intake.journeyhouserecovery.org/generatepdf',
-        // Try the base URL as a fallback
-        'https://intake.journeyhouserecovery.org/pdf'
-      ];
-      
-      if (process.env.NODE_ENV === 'development') {
-        FUNCTION_URL_OPTIONS.unshift('http://localhost:7071/api/generatepdf');
-      }
-
-      // Log the request info
-      console.log('PDF generation request starting...', {
-        urls: FUNCTION_URL_OPTIONS,
-        dataSize: JSON.stringify(formData).length,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        signatureCount: formData.signatures?.length || 0
+      const testResponse = await fetch(FUNCTION_URL, {
+        method: 'HEAD',
+        headers: { 'Content-Type': 'application/json' },
+        // Use the environment-specific credentials mode
+        credentials: credentialsMode,
+        // Add a cachebuster to prevent caching issues
+        cache: 'no-cache'
       });
-
-      // Create a deep copy of form data to ensure no reference issues
-      const formDataCopy = JSON.parse(JSON.stringify(formData));
-
-      // Try each URL in sequence until one works
-      let response = null;
-      let lastError = null;
-      let successUrl = null;
-
-      for (const url of FUNCTION_URL_OPTIONS) {
-        try {
-          console.log(`Trying function URL: ${url}`);
-          response = await fetch(url, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/pdf, application/octet-stream'
-            },
-            body: JSON.stringify(formDataCopy),
-            signal: AbortSignal.timeout(30000) // 30 second timeout per attempt
-          });
-          
-          if (response.ok) {
-            successUrl = url;
-            console.log(`Successfully connected to function at: ${url}`);
-            break;
-          } else {
-            console.warn(`Failed to connect to ${url}: ${response.status} ${response.statusText}`);
-          }
-        } catch (err) {
-          console.warn(`Error connecting to ${url}:`, err);
-          lastError = err;
-        }
-      }
-
-      if (!response || !response.ok) {
-        console.error('All function URLs failed. Last error:', lastError);
-        throw new Error(`PDF generation failed: Could not connect to PDF generation service. Please contact support.`);
-      }
-
-      // Log the response info for debugging
-      console.log('PDF generation response:', {
-        status: response.status,
-        statusText: response.statusText,
-        contentType: response.headers.get('content-type'),
-        contentLength: response.headers.get('content-length'),
-        successUrl
-      });
-
-      const blob = await response.blob();
       
-      // Check the blob's size to ensure it's not empty
-      if (blob.size === 0) {
-        console.error('Empty PDF file received (zero bytes)');
-        throw new Error('Empty PDF file received (zero bytes)');
+      console.log('Function endpoint test result:', testResponse.ok, 'Status:', testResponse.status);
+      if (!testResponse.ok) {
+        console.warn('Function endpoint may not be reachable, but continuing with main request...');
       }
+    } catch (testError) {
+      console.warn('Function endpoint test failed, but continuing with main request:', testError);
+      // Continue with the main request anyway
+    }
 
-      // Log blob details for debugging
-      console.log('PDF blob received:', {
-        type: blob.type,
-        size: blob.size
-      });
+    // Main PDF generation request
+    const response = await fetch(FUNCTION_URL, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        // Add a request ID for tracking
+        'X-Request-ID': `pdf-${Date.now()}`
+      },
+      body: JSON.stringify(formData),
+      // Use the environment-specific credentials mode
+      credentials: credentialsMode,
+      // Add a cachebuster to prevent caching issues
+      cache: 'no-cache'
+    });
 
-      // Validate content type - be more flexible with content types
-      const validPdfTypes = ['application/pdf', 'application/octet-stream', 'binary/octet-stream'];
-      if (!validPdfTypes.includes(blob.type.toLowerCase())) {
-        console.warn(`Unexpected content type: ${blob.type}. Expected a PDF.`);
-      }
+    console.log('PDF generation response received:', {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      headers: Array.from(response.headers.entries())
+    });
 
-      const firstName = (formData.firstName || '').trim();
-      const lastName = (formData.lastName || '').trim();
-      const filename = `${lastName}${firstName}_Intake.pdf`
-        .replace(/\s+/g, '')
-        .replace(/[^a-zA-Z0-9_.-]/g, '');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('PDF generation failed with error text:', errorText);
+      throw new Error(`PDF generation failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
 
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
+    // Check if we received data
+    const blob = await response.blob();
+    console.log('Received blob:', {
+      size: blob.size,
+      type: blob.type
+    });
+
+    if (blob.size === 0) {
+      console.error('Received an empty blob');
+      throw new Error('Empty PDF file received');
+    }
+
+    // Check content type more flexibly
+    if (!blob.type.includes('pdf') && !blob.type.includes('application/octet-stream')) {
+      console.error('Unexpected content type:', blob.type);
+      // Continue anyway, as the content type might be incorrectly set
+      console.warn('Attempting to download anyway');
+    }
+
+    const firstName = (formData.firstName || '').trim();
+    const lastName = (formData.lastName || '').trim();
+    const filename = `${lastName}${firstName}_Intake.pdf`
+      .replace(/\s+/g, '')
+      .replace(/[^a-zA-Z0-9_.-]/g, '');
+
+    console.log('Creating download for file:', filename);
+    
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    
+    // Append to document and click
+    document.body.appendChild(link);
+    console.log('Download link created, attempting to click');
+    link.click();
+    
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      console.log('Download link cleanup completed');
+    }, 1000);
+
+    toast.success('PDF download initiated');
+    return true;
+  } catch (error) {
+    console.error('PDF download failed:', error);
+    
+    // More specific error messages
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      toast.error('Unable to reach the PDF generation service. Please check your network connection.');
+    } else if (error instanceof Error && error.message.includes('Empty PDF')) {
+      toast.error('The server returned an empty PDF file. Please try again or contact support.');
+    } else {
+      toast.error('Failed to download PDF: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+    
+    // Attempt fallback download method
+    try {
+      console.log('Attempting fallback download method...');
       
-      // Small delay before cleanup to ensure download starts
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        console.log('PDF download completed successfully');
-      }, 100);
-
+      // Create a new URL object for better URL handling
+      const functionUrl = new URL(FUNCTION_URL);
+      
+      // Use the direct URL download approach
+      const fallbackUrl = `${functionUrl.origin}/api/downloadpdf?firstName=${encodeURIComponent(formData.firstName || '')}&lastName=${encodeURIComponent(formData.lastName || '')}`;
+      console.log('Fallback URL:', fallbackUrl);
+      
+      // Open in a new tab/window
+      window.open(fallbackUrl, '_blank');
+      toast.info('Attempted alternative download method. Please check your browser for a new tab.');
+      
       return true;
-    } catch (error) {
-      console.error('PDF download failed:', error);
-      toast.error(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (fallbackError) {
+      console.error('Fallback download method failed:', fallbackError);
       return false;
     }
+  }
   };
+
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -517,29 +534,12 @@ export default function OnboardingForm() {
       if (missingFields.length > 0) {
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
-      
-      // Create a deep copy of form data to avoid reference issues
-      const formDataCopy = JSON.parse(JSON.stringify(formData));
   
-      // Submit data to the API
-      console.log('Form submission starting...');
-      const result = await DataApiTransformer.createParticipantRecord(formDataCopy);
+      const result = await DataApiTransformer.createParticipantRecord(formData);
       
       if (result.success) {
-        console.log('Form submission successful, attempting to generate PDF...');
-        
-        try {
-          const pdfSuccess = await downloadPDF(formDataCopy);
-          if (!pdfSuccess) {
-            console.warn('Form submitted but PDF download had issues');
-            toast.warning('Your form was submitted successfully, but there was an issue generating the PDF. The Azure Function for PDF generation might need to be checked.');
-          }
-        } catch (pdfError) {
-          console.error('PDF generation error:', pdfError);
-          toast.warning('Your form was submitted successfully, but there was an issue generating the PDF. The Azure Function for PDF generation might need to be checked.');
-        }
-        
-        navigateTo('/success');
+        await downloadPDF(formData);
+        router.push('/success');
       } else {
         throw new Error(result.message || 'Form submission failed');
       }
@@ -743,7 +743,7 @@ export default function OnboardingForm() {
             <Button variant="outline" onClick={() => setShowDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={() => navigateTo('/')}>
+            <Button onClick={() => router.push('/')}>
               Yes, return home
             </Button>
           </DialogFooter>

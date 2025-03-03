@@ -28,15 +28,67 @@ const ASAMAssessment: React.FC<ASAMAssessmentProps> = ({
 }) => {
 
   useEffect(() => {
-    if (formData.legalStatus?.hasProbationPretrial && formData.legalStatus?.jurisdiction) {
-      if (!formData.probationHistory || formData.probationHistory.length === 0) {
-        // Initialize probation history with one entry
-        // Ensure type is strictly 'probation' or 'pretrial'
-        const probationType = formData.legalStatus.jurisdictionTypes === 'pretrial' ? 'pretrial' : 'probation';
+    // If user indicated they have probation/pretrial on Page 4, but no entries exist
+    if (formData.legalStatus?.hasProbationPretrial === true && 
+        (!formData.probationHistory || formData.probationHistory.length === 0)) {
+      
+      // Check if we have jurisdiction info from page 4
+      if (formData.legalStatus.jurisdiction) {
+        const jurisdictions = formData.legalStatus.jurisdiction.split(',').filter(j => j !== 'unselected' && j !== 'none');
+        const jurisdictionTypes = formData.legalStatus.jurisdictionTypes?.split(',') || [];
         
+        // Create probation entries based on jurisdiction data
+        const entries = jurisdictions.map((jurisdiction, i) => {
+          let formattedJurisdiction = jurisdiction;
+          
+          // Format jurisdiction name
+          if (jurisdiction === 'henrico') formattedJurisdiction = 'Henrico';
+          if (jurisdiction === 'chesterfield') formattedJurisdiction = 'Chesterfield';
+          if (jurisdiction === 'richmond') formattedJurisdiction = 'Richmond City';
+          
+          // Determine type
+          let type: 'probation' | 'pretrial' = 'probation';
+          if (jurisdictionTypes[i] === 'pretrial') {
+            type = 'pretrial';
+          } else if (jurisdictionTypes[i] === 'both') {
+            // If both, default to probation but create a second entry for pretrial
+            if (i === 0) {
+              // For the first jurisdiction with "both", we'll create an additional entry later
+              setTimeout(() => {
+                const updatedEntries = [...(formData.probationHistory || [])];
+                updatedEntries.push({
+                  type: 'pretrial',
+                  jurisdiction: formattedJurisdiction,
+                  startDate: '',
+                  endDate: '',
+                  officerName: '',
+                  officerEmail: '',
+                  officerPhone: ''
+                });
+                handleSelectChange('probationHistory', updatedEntries);
+              }, 0);
+            }
+          }
+          
+          return {
+            type,
+            jurisdiction: formattedJurisdiction,
+            startDate: '',
+            endDate: '',
+            officerName: '',
+            officerEmail: '',
+            officerPhone: ''
+          };
+        });
+        
+        if (entries.length > 0) {
+          handleSelectChange('probationHistory', entries);
+        }
+      } else {
+        // If no jurisdiction info, create a default empty entry
         handleSelectChange('probationHistory', [{
-          type: probationType,
-          jurisdiction: formData.legalStatus.jurisdiction,
+          type: 'probation',
+          jurisdiction: '',
           startDate: '',
           endDate: '',
           officerName: '',
@@ -45,8 +97,7 @@ const ASAMAssessment: React.FC<ASAMAssessmentProps> = ({
         }]);
       }
     }
-  }, [formData.legalStatus?.hasProbationPretrial, formData.legalStatus?.jurisdiction, 
-      formData.legalStatus?.jurisdictionTypes, formData.probationHistory, handleSelectChange]);
+  }, [formData.legalStatus?.hasProbationPretrial, formData.legalStatus?.jurisdiction]);
 
   const drugTypes = [
     { name: 'Alcohol', hasIV: false },
