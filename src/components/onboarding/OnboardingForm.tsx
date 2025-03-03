@@ -376,7 +376,7 @@ export default function OnboardingForm() {
     console.log('Current environment:', process.env.NODE_ENV);
     console.log('Using PDF function URL:', FUNCTION_URL);
     console.log('Using credentials mode:', credentialsMode);
-  }, []);
+  }, [FUNCTION_URL, credentialsMode]);
 
   const downloadPDF = async (formData: FormData) => {
   try {
