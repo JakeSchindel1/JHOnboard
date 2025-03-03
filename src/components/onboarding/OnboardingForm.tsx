@@ -175,23 +175,26 @@ const initialFormState: FormData = {
 };
 
 export default function OnboardingForm() {
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [showDialog, setShowDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [programInfoReviewed, setProgramInfoReviewed] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormState);
-  const router = useRouter();
-  const [isRouterReady, setIsRouterReady] = useState(false);
-
+  
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentPage]);
-
-  // Set router as ready - App Router is always ready
-  useEffect(() => {
-    setIsRouterReady(true);
-  }, []);
+  
+  const navigateTo = (path: string) => {
+    try {
+      router.push(path);
+    } catch (error) {
+      console.warn('Router navigation failed, using fallback', error);
+      window.location.href = path;
+    }
+  };
 
   const handleInputChange: InputChangeHandler = (e) => {
     const { name, value, type, checked } = e.target;
@@ -536,12 +539,7 @@ export default function OnboardingForm() {
           toast.warning('Your form was submitted successfully, but there was an issue generating the PDF. The Azure Function for PDF generation might need to be checked.');
         }
         
-        // Safety check for router
-        if (isRouterReady) {
-          router.push('/success');
-        } else {
-          window.location.href = '/success';
-        }
+        navigateTo('/success');
       } else {
         throw new Error(result.message || 'Form submission failed');
       }
@@ -745,14 +743,7 @@ export default function OnboardingForm() {
             <Button variant="outline" onClick={() => setShowDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={() => {
-              if (isRouterReady) {
-                router.push('/');
-              } else {
-                // Fallback if router isn't ready
-                window.location.href = '/';
-              }
-            }}>
+            <Button onClick={() => navigateTo('/')}>
               Yes, return home
             </Button>
           </DialogFooter>
