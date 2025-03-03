@@ -31,8 +31,11 @@ const ASAMAssessment: React.FC<ASAMAssessmentProps> = ({
     if (formData.legalStatus?.hasProbationPretrial && formData.legalStatus?.jurisdiction) {
       if (!formData.probationHistory || formData.probationHistory.length === 0) {
         // Initialize probation history with one entry
+        // Ensure type is strictly 'probation' or 'pretrial'
+        const probationType = formData.legalStatus.jurisdictionTypes === 'pretrial' ? 'pretrial' : 'probation';
+        
         handleSelectChange('probationHistory', [{
-          type: formData.legalStatus.jurisdictionTypes || 'probation',
+          type: probationType,
           jurisdiction: formData.legalStatus.jurisdiction,
           startDate: '',
           endDate: '',
