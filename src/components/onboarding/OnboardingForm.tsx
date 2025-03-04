@@ -539,7 +539,19 @@ export default function OnboardingForm() {
       
       if (result.success) {
         await downloadPDF(formData);
-        router.push('/success');
+        // Use a safer approach to navigate to the success page
+        try {
+          if (router && typeof router.push === 'function') {
+            router.push('/success');
+          } else {
+            // Fallback to traditional navigation if router is not available
+            window.location.href = '/success';
+          }
+        } catch (error) {
+          console.error('Navigation error:', error);
+          // Last resort fallback
+          window.location.href = '/success';
+        }
       } else {
         throw new Error(result.message || 'Form submission failed');
       }
@@ -732,10 +744,10 @@ export default function OnboardingForm() {
       </form>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby="dialog-description">
           <DialogHeader>
             <DialogTitle>Return to Home Page?</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="dialog-description">
               Are you sure you want to return to the home page? Any unsaved progress will be lost.
             </DialogDescription>
           </DialogHeader>
@@ -743,7 +755,19 @@ export default function OnboardingForm() {
             <Button variant="outline" onClick={() => setShowDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={() => router.push('/')}>
+            <Button onClick={() => {
+              try {
+                if (router && typeof router.push === 'function') {
+                  router.push('/');
+                } else {
+                  // Fallback to traditional navigation
+                  window.location.href = '/';
+                }
+              } catch (error) {
+                console.error('Navigation error:', error);
+                window.location.href = '/';
+              }
+            }}>
               Yes, return home
             </Button>
           </DialogFooter>

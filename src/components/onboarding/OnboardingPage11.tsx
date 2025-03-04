@@ -6,7 +6,6 @@ import { FileCheck, AlertTriangle, PlusCircle, XCircle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { OnboardingPageProps, PendingCharge, Conviction, FormData, Signature } from '@/types';
-import { useRouter } from 'next/router';
 
 const RadioOptions = ({ 
   label, 
@@ -77,6 +76,7 @@ export default function OnboardingPage11({
   formData,
   handleInputChange,
   handleSelectChange,
+  setCurrentPage
 }: OnboardingPageProps) {
   const [pendingCharges, setPendingCharges] = useState<PendingCharge[]>([
     { chargeDescription: '', location: '' }
@@ -85,8 +85,6 @@ export default function OnboardingPage11({
   const [convictions, setConvictions] = useState<Conviction[]>([
     { offense: '' }
   ]);
-
-  const router = useRouter();
 
   const handlePendingChargeChange = (index: number, field: keyof PendingCharge, value: string) => {
     const newPendingCharges = [...pendingCharges];
@@ -145,40 +143,6 @@ export default function OnboardingPage11({
     });
     
     handleSelectChange('signatures', updatedSignatures);
-
-    // Generate PDF with criminal history information
-    const response = await fetch('/api/generate-pdf', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        documentType: 'criminal_history',
-        signatureId,
-        legalStatus: formData.legalStatus,
-        pendingCharges,
-        convictions
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('Failed to generate PDF');
-      return;
-    }
-
-    // Handle PDF download
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'criminal_history_disclosure.pdf';
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-
-    // Continue with navigation
-    router.push('/onboarding/12');
   };
 
   return (
@@ -425,7 +389,7 @@ export default function OnboardingPage11({
               onClick={handleSubmit}
               className="w-full"
             >
-              Submit and Generate PDF
+              Sign and Confirm
             </Button>
           </div>
         </CardContent>
