@@ -88,16 +88,16 @@ export class DataApiTransformer {
     }
 
     return {
-      firstName: formData.firstName.trim(),
-      lastName: formData.lastName.trim(),
-      intakeDate: formData.intakeDate,
-      housingLocation: formData.housingLocation?.toLowerCase() || '',
-      dateOfBirth: formData.dateOfBirth,
-      socialSecurityNumber: formData.socialSecurityNumber,
+      first_name: formData.firstName.trim(),
+      last_name: formData.lastName.trim(),
+      intake_date: formData.intakeDate,
+      housing_location: formData.housingLocation?.toLowerCase() || '',
+      date_of_birth: formData.dateOfBirth,
+      social_security_number: formData.socialSecurityNumber,
       sex: formData.sex?.toLowerCase() || '',
       email: formData.email.toLowerCase().trim(),
-      driversLicenseNumber: formData.driversLicenseNumber?.trim() || '',
-      phoneNumber: formData.phoneNumber?.trim() || ''
+      drivers_license_number: formData.driversLicenseNumber?.trim() || '',
+      phone_number: formData.phoneNumber?.trim() || ''
     };
   }
 
@@ -231,12 +231,12 @@ export class DataApiTransformer {
         medicalInformation: this.transformMedicalInfo(formData),
         legalStatus: this.transformLegalInfo(formData),
         signatures: this.transformSignatures(formData.signatures),
-        emergencyContact: {
-          firstName: formData.emergencyContact.firstName.trim(),
-          lastName: formData.emergencyContact.lastName.trim(),
+        emergency_contact: {
+          first_name: formData.emergencyContact.firstName.trim(),
+          last_name: formData.emergencyContact.lastName.trim(),
           phone: formData.emergencyContact.phone.trim(),
           relationship: formData.emergencyContact.relationship.trim(),
-          otherRelationship: formData.emergencyContact.otherRelationship?.trim() || ''
+          other_relationship: formData.emergencyContact.otherRelationship?.trim() || ''
         },
         authorizedPeople: (formData.authorizedPeople || []).map(person => ({
           firstName: person.firstName.trim(),
@@ -283,7 +283,7 @@ export class DataApiTransformer {
 
       console.log('Submitting data to API:', {
         ...submitPayload,
-        socialSecurityNumber: '[REDACTED]'
+        social_security_number: '[REDACTED]'
       });
 
       try {

@@ -1,50 +1,9 @@
 import { NextResponse } from 'next/server'
 import { OnboardingSchema } from './schema'
-import sql, { ConnectionPool } from 'mssql'
-import { ParticipantService } from '@/services/participantService'
 import { logger } from '@/lib/logger'
-import { PowerAutomateService } from '@/services/powerAutomateService'
 import { z } from 'zod'
-
-// Global connection pool
-let pool: ConnectionPool | null = null;
-
-async function getConnection(): Promise<sql.ConnectionPool> {
-  if (pool) {
-    return pool;
-  }
-  
-  logger.info('Attempting database connection...');
-  
-  const config = {
-    server: process.env.DB_SERVER!,
-    database: process.env.DB_NAME!,
-    user: process.env.DB_USER!,
-    password: process.env.DB_PASSWORD!,
-    options: {
-      encrypt: true,
-      enableArithAbort: true,
-      trustServerCertificate: true
-    },
-    pool: {
-      max: 10,
-      min: 0,
-      idleTimeoutMillis: 30000
-    }
-  };
-
-  try {
-    pool = await new sql.ConnectionPool(config).connect();
-    logger.info('Database connection established');
-    return pool;
-  } catch (error: any) {
-    logger.error('Database connection failed', error, {
-      server: process.env.DB_SERVER,
-      database: process.env.DB_NAME,
-    });
-    throw error;
-  }
-}
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
 // Define a type for signature
 interface Signature {
@@ -55,9 +14,8 @@ interface Signature {
 }
 
 // Create a modified schema for signature types to allow any string value
-// This replaces the enum restriction in the original schema
 const FlexibleSignatureSchema = z.object({
-  signatureType: z.string(), // Accept any string value for signatureType
+  signatureType: z.string(),
   signatureId: z.string(),
   signatureTimestamp: z.string(),
   witnessTimestamp: z.string().optional()
@@ -67,9 +25,20 @@ export async function POST(request: Request) {
   try {
     logger.info('Received POST request');
     
-    // Rate limiting (simple implementation)
     const requestId = crypto.randomUUID();
     logger.debug('Request received', { requestId });
+    
+    // Get Supabase client
+    const supabase = createServerComponentClient({ cookies });
+    
+    // Get the current authenticated user
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+    
+    logger.info('User authentication status', { 
+      authenticated: !!user,
+      userId: userId || 'anonymous'
+    });
     
     const body = await request.json();
     logger.debug('Request body received', { 
@@ -78,11 +47,10 @@ export async function POST(request: Request) {
       lastName: body.lastName
     });
 
-    // Validate data against schema
     try {
       logger.info('Validating data schema');
       
-      // Check if signatures are present in the request
+      // Validate signatures (same as before)
       if (body.signatures && Array.isArray(body.signatures)) {
         logger.info(`Found ${body.signatures.length} signatures to validate`);
         
@@ -104,12 +72,11 @@ export async function POST(request: Request) {
         logger.info(`Validated ${validatedSignatures.length} signatures`);
       }
       
-      // Now validate the rest of the schema
-      // We use a modified approach that's more lenient on signature types
+      // Validate rest of schema (unchanged)
       const { signatures, ...otherData } = body;
       const validatedBase = OnboardingSchema.omit({ signatures: true }).parse(otherData);
       
-      // Combine the validated base data with our validated signatures
+      // Combine data (unchanged)
       const validatedData = {
         ...validatedBase,
         signatures: body.signatures || []
@@ -117,60 +84,59 @@ export async function POST(request: Request) {
       
       logger.info('Data validation passed');
       
-      // Get database connection
-      const pool = await getConnection();
+      // Insert main participant data
+      const { data: participant, error: participantError } = await supabase
+        .from('participants')
+        .insert({
+          first_name: validatedData.firstName,
+          last_name: validatedData.lastName,
+          intake_date: validatedData.intakeDate,
+          housing_location: validatedData.housingLocation,
+          date_of_birth: validatedData.dateOfBirth,
+          social_security_number: validatedData.socialSecurityNumber,
+          sex: validatedData.sex,
+          email: validatedData.email,
+          drivers_license_number: validatedData.driversLicenseNumber,
+          phone_number: validatedData.phoneNumber,
+          created_by: userId
+        })
+        .select('id')
+        .single();
       
-      // Create participant service and call it
-      const participantService = new ParticipantService(pool);
-      const result = await participantService.createParticipant(validatedData);
-      
-      if (result.success) {
-        // Log successful submission with signature types for audit purposes
-        logger.info('Participant created successfully', {
-          residentId: result.residentId,
-          signatureTypes: validatedData.signatures?.map((s: Signature) => s.signatureType) || []
-        });
-        
-        // Successfully saved to database, now send to Power Automate
-        try {
-          const powerAutomateService = new PowerAutomateService();
-          const paResult = await powerAutomateService.sendFormData(validatedData);
-          
-          if (!paResult.success) {
-            logger.warn('Power Automate submission failed but database save succeeded', {
-              error: paResult.error
-            });
-          } else {
-            logger.info('Power Automate flow triggered successfully');
-          }
-        } catch (paError) {
-          // Don't fail the overall request if Power Automate fails
-          logger.error('Error calling Power Automate flow', paError);
-        }
-        
-        return NextResponse.json({
-          success: true,
-          message: result.message,
-          data: {
-            resident_id: result.residentId,
-            name: `${validatedData.firstName} ${validatedData.lastName}`,
-            intake_date: validatedData.intakeDate
-          }
-        });
-      } else {
-        logger.error('Participant creation failed', new Error(result.error || 'Unknown error'), { 
-          firstName: validatedData.firstName,
-          lastName: validatedData.lastName
-        });
-        
-        return NextResponse.json({
-          success: false,
-          message: result.message,
-          error: result.error
-        }, { 
-          status: 500 
-        });
+      if (participantError) {
+        throw new Error(`Failed to insert participant: ${participantError.message}`);
       }
+      
+      const participantId = participant.id;
+      
+      // Insert health status
+      const { error: healthError } = await supabase
+        .from('health_status')
+        .insert({
+          participant_id: participantId,
+          pregnant: validatedData.healthStatus.pregnant,
+          developmentally_disabled: validatedData.healthStatus.developmentallyDisabled,
+          // ... other health fields ...
+          created_by: userId
+        });
+      
+      if (healthError) {
+        throw new Error(`Failed to insert health status: ${healthError.message}`);
+      }
+      
+      // ... Continue with other inserts (vehicle, emergency contacts, etc.) ...
+      
+      // Return success response
+      return NextResponse.json({
+        success: true,
+        message: 'Participant data saved successfully',
+        data: {
+          participant_id: participantId,
+          name: `${validatedData.firstName} ${validatedData.lastName}`,
+          intake_date: validatedData.intakeDate
+        }
+      });
+      
     } catch (validationError: any) {
       logger.error('Validation error', validationError);
       

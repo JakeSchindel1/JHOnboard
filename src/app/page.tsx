@@ -2,55 +2,27 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from '@/components/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Lock, User, ArrowRight } from "lucide-react";
+import { LoginModal } from '@/components/login/LoginModal';
+import { ArrowRight } from "lucide-react";
 
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [error, setError] = useState('');
   const [isVisible, setIsVisible] = useState(false);
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  });
-  
-  const { login } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     setIsVisible(true);
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setError('');
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
     
-    if (login(formData.username, formData.password)) {
-      setIsLoginOpen(false);
+    // Redirect to onboarding if already logged in
+    if (user) {
       router.push('/onboarding');
-    } else {
-      setError('Invalid username or password');
     }
-  };
+  }, [user, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white">
@@ -98,53 +70,11 @@ export default function LandingPage() {
         </div>
       </main>
 
-      {/* Login Dialog */}
-      <Dialog open={isLoginOpen} onOpenChange={setIsLoginOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center text-xl font-semibold">Welcome Back</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <div className="relative">
-                <User className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-                <Input
-                  id="username"
-                  name="username"
-                  placeholder="Enter username"
-                  className="pl-10"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="Enter password"
-                  className="pl-10"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
-            {error && (
-              <div className="text-red-500 text-sm text-center">{error}</div>
-            )}
-            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
-              Sign in
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={isLoginOpen} 
+        onClose={() => setIsLoginOpen(false)} 
+      />
     </div>
   );
 }
