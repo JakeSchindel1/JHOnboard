@@ -4,21 +4,32 @@
         "route": "/api/*",
         "methods": ["GET", "POST"],
         "allowedRoles": ["anonymous"]
+      },
+      {
+        "route": "/*",
+        "rewrite": "/index.html",
+        "allowedRoles": ["anonymous"]
       }
     ],
     "navigationFallback": {
-      "rewrite": "/_next/static/index.html",
-      "exclude": [
-        "/_next/static/*",
-        "/_next/image",
-        "/images/*",
-        "/api/*"
-      ]
+      "rewrite": "/index.html"
+    },
+    "responseOverrides": {
+      "404": {
+        "rewrite": "/index.html",
+        "statusCode": 200
+      }
     },
     "platform": {
       "apiRuntime": "node:18"
     },
     "framework": {
-      "name": "nextjs"
+      "name": "next"
+    },
+    "mimeTypes": {
+      ".json": "text/json",
+      ".js": "text/javascript",
+      ".css": "text/css",
+      ".html": "text/html"
     }
   }

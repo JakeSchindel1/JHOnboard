@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 // Default URL for the Azure Function
 const DEFAULT_PDF_FUNCTION_URL = 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
 
+// Add export config for Next.js static export
+export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
   // Get the PDF function URL from environment variable or use default
   const pdfFunctionUrl = process.env.PDF_FUNCTION_URL || DEFAULT_PDF_FUNCTION_URL;

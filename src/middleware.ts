@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// This middleware helps with routing in Azure Static Web Apps
+// Simple middleware for static export - handles authentication redirects
 export function middleware(request: NextRequest) {
-  // Clean up query parameters that might interfere with routing
-  if (request.nextUrl.searchParams.has('code')) {
-    const url = request.nextUrl.clone();
+  // For static export, we only handle specific cases like auth redirect cleanup
+  const url = request.nextUrl.clone();
+  
+  // Handle auth redirects which might have query parameters
+  if (url.pathname === '/' && url.searchParams.has('code')) {
     url.searchParams.delete('code');
     return NextResponse.redirect(url);
   }
@@ -13,21 +15,7 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
+// Simplified matcher for static export
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico, robots.txt, manifest.json (public files)
-     */
-    {
-      source: '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|manifest.json).*)',
-      missing: [
-        { type: 'header', key: 'next-router-prefetch' },
-        { type: 'header', key: 'purpose', value: 'prefetch' },
-      ],
-    },
-  ],
+  matcher: ['/', '/onboarding', '/reset-password', '/success']
 }; 

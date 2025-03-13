@@ -5,7 +5,7 @@ const nextConfig = {
   },
   generateEtags: false,
   distDir: '.next',
-  output: 'standalone',
+  output: 'export',
   trailingSlash: true,
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
