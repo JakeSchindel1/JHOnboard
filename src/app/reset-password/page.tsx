@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabase';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -35,11 +34,13 @@ export default function ResetPassword() {
     }
 
     try {
-      // Create a client-side Supabase client if our imported one is null
-      const supabaseClient = supabase || createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-      );
+      // Use the helper function to get a valid client
+      const supabaseClient = getSupabaseClient();
+      
+      // Only continue if we have a valid client
+      if (!supabaseClient) {
+        throw new Error('Authentication service unavailable');
+      }
       
       const { error } = await supabaseClient.auth.updateUser({ password });
 
