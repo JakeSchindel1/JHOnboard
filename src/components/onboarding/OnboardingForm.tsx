@@ -365,8 +365,9 @@ export default function OnboardingForm() {
     ? 'include' // Use include for local development
     : 'same-origin'; // Use same-origin for production
 
-  // Set the PDF function URL with a fallback to the Next.js API route
-  const FUNCTION_URL = process.env.NEXT_PUBLIC_PDF_FUNCTION_URL || '/api/generatepdf';
+  // Always use the Azure Function URL directly in static export mode
+  // This avoids using the Next.js API route which is not compatible with static exports
+  const FUNCTION_URL = process.env.NEXT_PUBLIC_PDF_FUNCTION_URL || 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
 
   // Log the current environment and function URL for debugging
   useEffect(() => {

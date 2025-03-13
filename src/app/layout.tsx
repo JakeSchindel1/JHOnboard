@@ -2,6 +2,14 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from '@/components/contexts/AuthContext';
+import dynamic from 'next/dynamic';
+
+// Dynamically import the AuthParamCleaner with no SSR
+// This ensures it only runs on the client side
+const AuthParamCleaner = dynamic(
+  () => import('@/components/AuthParamCleaner'),
+  { ssr: false }
+);
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -51,6 +59,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
+          {/* Add AuthParamCleaner here to clean up auth parameters */}
+          <AuthParamCleaner />
           {children}
         </AuthProvider>
       </body>
