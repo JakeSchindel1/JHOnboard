@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -34,7 +35,13 @@ export default function ResetPassword() {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      // Create a client-side Supabase client if our imported one is null
+      const supabaseClient = supabase || createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+      );
+      
+      const { error } = await supabaseClient.auth.updateUser({ password });
 
       if (error) {
         setError(error.message);
