@@ -4,18 +4,21 @@
         "route": "/api/*",
         "methods": ["GET", "POST"],
         "allowedRoles": ["anonymous"]
-      },
-      {
-        "route": "/*",
-        "serve": "/index.html",
-        "statusCode": 200
       }
     ],
     "navigationFallback": {
-      "rewrite": "/index.html",
-      "exclude": ["/images/*.{png,jpg,gif}", "/css/*", "/api/*"]
+      "rewrite": "/_next/static/index.html",
+      "exclude": [
+        "/_next/static/*",
+        "/_next/image",
+        "/images/*",
+        "/api/*"
+      ]
     },
     "platform": {
-      "apiRuntime": "python:3.9"
+      "apiRuntime": "node:18"
+    },
+    "framework": {
+      "name": "nextjs"
     }
   }
