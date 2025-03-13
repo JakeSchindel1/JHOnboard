@@ -3,7 +3,7 @@
 // contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, createClient } from '@supabase/supabase-js';
 
 // Define the shape of our auth context
 type AuthContextType = {
@@ -24,6 +24,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to get a valid Supabase client
+  const getSupabaseClient = () => {
+    return supabase || createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    );
+  };
+
   // Check for session when the component mounts
   useEffect(() => {
     // Get initial session
@@ -31,7 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const supabaseClient = getSupabaseClient();
+        const { data: { session } } = await supabaseClient.auth.getSession();
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -45,7 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getInitialSession();
 
     // Set up auth listener for future changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const supabaseClient = getSupabaseClient();
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
@@ -62,7 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign in with email and password
   const login = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const supabaseClient = getSupabaseClient();
+      const { error } = await supabaseClient.auth.signInWithPassword({
         email,
         password,
       });
@@ -77,7 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign out
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      const supabaseClient = getSupabaseClient();
+      await supabaseClient.auth.signOut();
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -86,7 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Reset password
   const resetPassword = async (email: string) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const supabaseClient = getSupabaseClient();
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       
