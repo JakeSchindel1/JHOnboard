@@ -1,0 +1,20 @@
+# Headers for all files in _next directory
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+  Content-Type: {{content-type}}
+
+# Set specific content types for critical file extensions
+/_next/static/chunks/*.js
+  Content-Type: application/javascript
+
+/_next/static/css/*.css
+  Content-Type: text/css
+
+/_next/static/media/*.woff
+  Content-Type: font/woff
+
+/_next/static/media/*.woff2
+  Content-Type: font/woff2
+
+/_next/static/images/*
+  Cache-Control: public, max-age=86400 

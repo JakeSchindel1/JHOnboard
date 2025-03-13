@@ -27,9 +27,22 @@
       "name": "next"
     },
     "mimeTypes": {
-      ".json": "text/json",
-      ".js": "text/javascript",
+      ".json": "application/json",
+      ".js": "application/javascript",
       ".css": "text/css",
-      ".html": "text/html"
+      ".html": "text/html",
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".gif": "image/gif",
+      ".svg": "image/svg+xml",
+      ".ico": "image/x-icon",
+      ".woff": "font/woff",
+      ".woff2": "font/woff2",
+      ".ttf": "font/ttf",
+      ".eot": "font/eot",
+      ".otf": "font/otf",
+      ".map": "application/json",
+      ".txt": "text/plain"
     }
   }

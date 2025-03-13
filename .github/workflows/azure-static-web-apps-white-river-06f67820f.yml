@@ -51,6 +51,19 @@ jobs:
        run: |
          npm install
          npm run build
+         # Verify config files exist
+         echo "Checking for critical config files..."
+         if [ -f "staticwebapp.config.json" ]; then echo "✅ staticwebapp.config.json exists"; else echo "❌ staticwebapp.config.json missing"; exit 1; fi
+         if [ -f "public/web.config" ]; then echo "✅ public/web.config exists"; else echo "❌ public/web.config missing"; exit 1; fi
+         if [ -f "public/routes.json" ]; then echo "✅ public/routes.json exists"; else echo "❌ public/routes.json missing"; exit 1; fi
+         if [ -f "public/_headers" ]; then echo "✅ public/_headers exists"; else echo "❌ public/_headers missing"; exit 1; fi
+         # Copy config files to output directory to ensure they're deployed
+         echo "Copying config files to output directory..."
+         cp staticwebapp.config.json out/
+         cp public/web.config out/
+         cp public/routes.json out/
+         cp public/_headers out/
+         ls -la out/
        env:
          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}

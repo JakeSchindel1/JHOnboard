@@ -287,6 +287,7 @@ export class DataApiTransformer {
       });
 
       try {
+        // Use the /api/submit endpoint now that we're back to standard Next.js deployment
         const response = await fetch('/api/submit', {
           method: 'POST',
           headers: {

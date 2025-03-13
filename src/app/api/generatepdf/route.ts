@@ -1,24 +1,74 @@
-// This file is kept for compatibility but won't be used in static export.
-// The client will directly call the Azure Function
+// Now that we're using standard Next.js deployment, this API route can proxy requests to the Azure Function
 
-// Note: For static export, this route should be removed from the build
-// and direct client-side calls to the Azure Function should be used instead.
+import { NextRequest, NextResponse } from 'next/server';
+
+// Enable dynamic API routes
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'; // Use Node.js runtime
 
 // Default URL for the Azure Function
 const PDF_FUNCTION_URL = process.env.PDF_FUNCTION_URL || 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
 
-// Export basic config to prevent dynamic errors
-export const dynamic = 'error';
-
-export async function POST() {
-  return new Response(
-    JSON.stringify({ 
-      error: 'This route is not available in static export mode',
-      message: 'Please call the Azure Function directly'
-    }),
-    { 
-      status: 501,
-      headers: { 'content-type': 'application/json' }
+export async function POST(request: NextRequest) {
+  console.log('PDF generation request received, forwarding to Azure Function');
+  
+  try {
+    // Get the request body
+    const body = await request.json();
+    
+    // Forward the request to the Azure Function
+    const response = await fetch(PDF_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Request-ID': request.headers.get('X-Request-ID') || `pdf-${Date.now()}`
+      },
+      body: JSON.stringify(body)
+    });
+    
+    // If the function returned an error, pass it through
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Azure Function returned an error:', response.status, errorText);
+      
+      return new NextResponse(
+        errorText,
+        { 
+          status: response.status,
+          headers: {
+            'Content-Type': response.headers.get('Content-Type') || 'text/plain'
+          }
+        }
+      );
     }
-  );
+    
+    // Get the PDF data
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+    
+    console.log('PDF generated successfully, size:', buffer.byteLength);
+    
+    // Return the PDF with appropriate headers
+    return new NextResponse(
+      buffer,
+      { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="GeneratedIntake.pdf"`,
+          'Content-Length': buffer.byteLength.toString()
+        }
+      }
+    );
+  } catch (error) {
+    console.error('Error forwarding request to Azure Function:', error);
+    
+    return NextResponse.json(
+      { 
+        error: 'Failed to generate PDF',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
 } 

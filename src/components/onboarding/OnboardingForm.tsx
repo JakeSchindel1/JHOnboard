@@ -22,6 +22,7 @@ import OnboardingPage14 from '@/components/onboarding/OnboardingPage14';
 import OnboardingPage15 from '@/components/onboarding/OnboardingPage15';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import DirectPdfDownload from '@/components/DirectPdfDownload';
 
 import {
   Dialog,
@@ -182,6 +183,7 @@ export default function OnboardingForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormState);
   const router = useRouter();
+  const [showDirectDownload, setShowDirectDownload] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -365,9 +367,9 @@ export default function OnboardingForm() {
     ? 'include' // Use include for local development
     : 'same-origin'; // Use same-origin for production
 
-  // Always use the Azure Function URL directly in static export mode
-  // This avoids using the Next.js API route which is not compatible with static exports
-  const FUNCTION_URL = process.env.NEXT_PUBLIC_PDF_FUNCTION_URL || 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
+  // Now that we're using standard Next.js deployment, we can use the Next.js API route
+  // This is more secure and handles CORS automatically
+  const FUNCTION_URL = '/api/generatepdf';
 
   // Log the current environment and function URL for debugging
   useEffect(() => {
@@ -534,17 +536,31 @@ export default function OnboardingForm() {
     
     setIsSubmitting(true);
     setSubmitError(null);
-  
+    setShowDirectDownload(false);
+
     try {
       const missingFields = validateFormData(formData);
       if (missingFields.length > 0) {
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
-  
+
       const result = await DataApiTransformer.createParticipantRecord(formData);
       
       if (result.success) {
-        await downloadPDF(formData);
+        // Try the PDF download
+        try {
+          const pdfResult = await downloadPDF(formData);
+          if (!pdfResult) {
+            // If PDF download fails, show the direct download option
+            setShowDirectDownload(true);
+            toast.warn("PDF generation via API failed. You can try the direct download button.");
+          }
+        } catch (pdfError) {
+          console.error('PDF generation error:', pdfError);
+          setShowDirectDownload(true);
+          toast.warn("PDF generation failed. You can try the direct download button.");
+        }
+        
         // Use a safer approach to navigate to the success page
         try {
           if (router && typeof router.push === 'function') {
@@ -564,6 +580,8 @@ export default function OnboardingForm() {
     } catch (error) {
       console.error('Form submission error:', error);
       setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      setShowDirectDownload(true);
+      toast.error("Form submission encountered an error. You can try to generate the PDF directly.");
     } finally {
       setIsSubmitting(false);
     }
@@ -725,6 +743,12 @@ export default function OnboardingForm() {
         {submitError && (
           <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-lg">
             {submitError}
+            {showDirectDownload && (
+              <div className="mt-4">
+                <p className="font-semibold">You can still generate the PDF:</p>
+                <DirectPdfDownload formData={formData} />
+              </div>
+            )}
           </div>
         )}
 

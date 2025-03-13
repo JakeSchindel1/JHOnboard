@@ -5,8 +5,16 @@ const nextConfig = {
   },
   generateEtags: false,
   distDir: '.next',
-  output: 'export',
   trailingSlash: true,
+  // Add asset prefix to help with static file loading
+  assetPrefix: process.env.NODE_ENV === 'production' ? undefined : undefined,
+  // Add optimizations for production builds
+  compiler: {
+    // Remove console logs in production
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // Remove x-powered-by header
+  poweredByHeader: false,
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
