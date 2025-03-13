@@ -230,7 +230,7 @@ export class DataApiTransformer {
         vehicle: this.transformVehicleInfo(formData),
         medicalInformation: this.transformMedicalInfo(formData),
         legalStatus: this.transformLegalInfo(formData),
-        signatures: formData.signatures,
+        signatures: this.transformSignatures(formData.signatures),
         emergencyContact: {
           firstName: formData.emergencyContact.firstName.trim(),
           lastName: formData.emergencyContact.lastName.trim(),
@@ -246,7 +246,6 @@ export class DataApiTransformer {
         })),
         healthStatus: this.transformHealthStatus(formData.healthStatus),
 
-        
         // ASAM Data
         mentalHealth: this.transformMentalHealth(formData),
         drugHistory: this.transformDrugHistory(formData),
@@ -287,34 +286,41 @@ export class DataApiTransformer {
         socialSecurityNumber: '[REDACTED]'
       });
 
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(submitPayload)
-      });
+      try {
+        const response = await fetch('/api/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(submitPayload)
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Response Error:', errorText);
-        throw new Error(`API request failed: ${errorText}`);
+        console.log('API Response status:', response.status, response.statusText);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API Response Error:', errorText);
+          throw new Error(`API request failed: ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('API Response data:', result);
+
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to submit participant data');
+        }
+
+        return {
+          success: true,
+          participantId: result.data?.participant_id,
+          message: 'Participant data submitted successfully',
+          data: result.data
+        };
+      } catch (apiError) {
+        console.error('API communication error:', apiError);
+        throw apiError;
       }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to submit participant data');
-      }
-
-      return {
-        success: true,
-        participantId: result.data?.participant_id,
-        message: 'Participant data submitted successfully',
-        data: result.data
-      };
-
     } catch (error) {
       console.error('Error in createParticipantRecord:', error);
       
@@ -330,5 +336,45 @@ export class DataApiTransformer {
         throw new Error(`Error creating participant record: ${errorMessage}`);
       }
     }
+  }
+
+  private static transformSignatures(signatures: Signature[]) {
+    if (!Array.isArray(signatures)) {
+      return [];
+    }
+
+    // Map of frontend signature types to backend signature types
+    const signatureTypeMap: Record<string, string> = {
+      'emergency': 'disclosure',
+      'medication': 'treat_others',
+      'disclosure': 'disclosure',
+      'treatment': 'disclosure',
+      'price_consent': 'house_rules',
+      'tenant_rights': 'resident_as_guest',
+      'contract_terms': 'house_rules',
+      'criminal_history': 'criminal_history',
+      'ethics': 'disclosure',
+      'critical_rules': 'house_rules',
+      'house_rules': 'house_rules',
+      'asam_assessment': 'asam_assessment',
+      'resident_as_guest': 'resident_as_guest',
+      'treat_others': 'treat_others'
+    };
+
+    console.log('Transforming signatures:', signatures.map(s => s.signatureType));
+    
+    const transformedSignatures = signatures.map(signature => {
+      // Map frontend signature type to backend signature type
+      const mappedType = signatureTypeMap[signature.signatureType] || 'disclosure';
+      console.log(`Mapping signature type: ${signature.signatureType} → ${mappedType}`);
+      
+      return {
+        ...signature,
+        signatureType: mappedType
+      };
+    });
+    
+    console.log('Transformed signatures:', transformedSignatures.map(s => s.signatureType));
+    return transformedSignatures;
   }
 }

@@ -361,15 +361,12 @@ export default function OnboardingForm() {
     return errors;
   };
 
-  const FUNCTION_URL = process.env.NEXT_PUBLIC_PDF_FUNCTION_URL 
-    || (process.env.NODE_ENV === 'development' 
-        ? 'http://localhost:7071/api/generatepdf'
-        : 'https://jhonboard-func.azurewebsites.net/api/generatepdf');
-
-  // Determine the credentials mode based on the environment
   const credentialsMode = process.env.NODE_ENV === 'development' 
     ? 'include' // Use include for local development
     : 'same-origin'; // Use same-origin for production
+
+  // Set the PDF function URL with a fallback to Azure URL
+  const FUNCTION_URL = process.env.NEXT_PUBLIC_PDF_FUNCTION_URL || 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
 
   // Log the current environment and function URL for debugging
   useEffect(() => {
@@ -403,6 +400,14 @@ export default function OnboardingForm() {
       // Continue with the main request anyway
     }
 
+    // Prepare the data to send to the function
+    const pdfRequestData = {
+      ...formData,
+      documentType: 'intake_form' // Specify the document type for the Azure Function
+    };
+
+    console.log('Sending data with document type:', pdfRequestData.documentType);
+
     // Main PDF generation request
     const response = await fetch(FUNCTION_URL, {
       method: 'POST',
@@ -411,7 +416,7 @@ export default function OnboardingForm() {
         // Add a request ID for tracking
         'X-Request-ID': `pdf-${Date.now()}`
       },
-      body: JSON.stringify(formData),
+      body: JSON.stringify(pdfRequestData),
       // Use the environment-specific credentials mode
       credentials: credentialsMode,
       // Add a cachebuster to prevent caching issues
