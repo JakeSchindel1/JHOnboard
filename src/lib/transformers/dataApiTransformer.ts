@@ -223,6 +223,8 @@ export class DataApiTransformer {
       }
 
       // Transform all data sections
+      // NOTE: This transforms the data into snake_case format for the API.
+      // The API route handles both camelCase and snake_case formats for compatibility.
       const submitPayload = {
         ...this.transformPersonalInfo(formData),
         insurances: this.transformInsurances(formData),
