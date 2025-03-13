@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase';
+import { useAuth } from '@/components/contexts/AuthContext';
 import Image from 'next/image';
 
 export default function ResetPassword() {
@@ -13,10 +14,19 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [isInviteMode, setIsInviteMode] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [isNewUserSetup, setIsNewUserSetup] = useState(false);
   const router = useRouter();
+  const { user, isNewUser } = useAuth();
 
   useEffect(() => {
-    // Check URL parameters for both reset token and invite token
+    // First, check if this is a logged-in user who needs to set their password
+    if (user && isNewUser) {
+      console.log('New user detected, showing password setup form');
+      setIsNewUserSetup(true);
+      return;
+    }
+
+    // Otherwise, check URL parameters for tokens
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const queryParams = new URLSearchParams(window.location.search);
     
@@ -32,10 +42,11 @@ export default function ResetPassword() {
       // This is an invite link
       setToken(inviteToken);
       setIsInviteMode(true);
-    } else {
+    } else if (!isNewUserSetup) {
+      // No tokens and not a new user setup - show error
       setError('Invalid or expired link. Please request a new link from your administrator.');
     }
-  }, []);
+  }, [user, isNewUser]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +78,10 @@ export default function ResetPassword() {
       
       let result;
       
-      if (isInviteMode && token) {
+      if (isNewUserSetup) {
+        // For new users who are already logged in and just need to set password
+        result = await supabaseClient.auth.updateUser({ password });
+      } else if (isInviteMode && token) {
         // For invite links, we're actually just setting a new password
         // Using more permissive typing with "as any" since the token handling
         // might vary between Supabase versions
@@ -76,7 +90,7 @@ export default function ResetPassword() {
           { emailRedirectTo: window.location.origin }
         );
       } else {
-        // For password reset, just update the password
+        // For password reset
         result = await supabaseClient.auth.updateUser({ password });
       }
 
@@ -85,9 +99,15 @@ export default function ResetPassword() {
       } else {
         setSuccess(true);
         
-        // On success, show success message, then redirect to login
+        // On success, show success message, then redirect to appropriate page
         setTimeout(() => {
-          router.push('/');
+          if (isNewUserSetup) {
+            // After setting password, direct to onboarding
+            router.push('/onboarding');
+          } else {
+            // For normal resets/invites, go to login
+            router.push('/');
+          }
         }, 3000);
       }
     } catch (error: any) {
@@ -96,6 +116,34 @@ export default function ResetPassword() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Determine appropriate title based on mode
+  const getPageTitle = () => {
+    if (isNewUserSetup) return 'Create Your Password';
+    if (isInviteMode) return 'Set Your Password';
+    return 'Reset Your Password';
+  };
+
+  // Determine appropriate button text
+  const getButtonText = () => {
+    if (loading) return 'Processing...';
+    if (isNewUserSetup) return 'Create Password';
+    if (isInviteMode) return 'Create Password';
+    return 'Reset Password';
+  };
+
+  // Determine success message
+  const getSuccessMessage = () => {
+    if (isNewUserSetup) return 'Password created successfully!';
+    if (isInviteMode) return 'Password created successfully!';
+    return 'Password updated successfully!';
+  };
+
+  // Determine redirect message
+  const getRedirectMessage = () => {
+    if (isNewUserSetup) return 'You will be redirected to the onboarding form shortly...';
+    return 'You will be redirected to the login page shortly...';
   };
 
   return (
@@ -113,13 +161,13 @@ export default function ResetPassword() {
         </div>
 
         <h1 className="text-2xl font-bold mb-6 text-center">
-          {isInviteMode ? 'Set Your Password' : 'Reset Your Password'}
+          {getPageTitle()}
         </h1>
 
         {success ? (
           <div className="bg-green-100 text-green-700 p-4 rounded mb-4">
-            <p>Password {isInviteMode ? 'created' : 'updated'} successfully!</p>
-            <p className="mt-2">You will be redirected to the login page shortly...</p>
+            <p>{getSuccessMessage()}</p>
+            <p className="mt-2">{getRedirectMessage()}</p>
           </div>
         ) : (
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
@@ -131,7 +179,7 @@ export default function ResetPassword() {
 
             <div className="space-y-2">
               <label htmlFor="password" className="block font-medium">
-                {isInviteMode ? 'New Password' : 'New Password'}
+                New Password
               </label>
               <input
                 id="password"
@@ -141,7 +189,7 @@ export default function ResetPassword() {
                 className="w-full p-2 border rounded-md"
                 required
                 minLength={8}
-                autoComplete={isInviteMode ? "new-password" : "new-password"}
+                autoComplete="new-password"
               />
               <p className="text-xs text-gray-500">
                 Password must be at least 8 characters
@@ -160,7 +208,7 @@ export default function ResetPassword() {
                 className="w-full p-2 border rounded-md"
                 required
                 minLength={8}
-                autoComplete={isInviteMode ? "new-password" : "new-password"}
+                autoComplete="new-password"
               />
             </div>
 
@@ -169,7 +217,7 @@ export default function ResetPassword() {
               disabled={loading}
               className="w-full py-2 px-4 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50"
             >
-              {loading ? 'Processing...' : isInviteMode ? 'Create Password' : 'Reset Password'}
+              {getButtonText()}
             </button>
           </form>
         )}

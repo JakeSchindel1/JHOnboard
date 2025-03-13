@@ -12,17 +12,18 @@ import { ArrowRight } from "lucide-react";
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const { user } = useAuth();
+  const { user, isNewUser } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     setIsVisible(true);
     
-    // Redirect to onboarding if already logged in
-    if (user) {
+    // Only redirect to onboarding if user is logged in AND not a new user who needs to set password
+    if (user && !isNewUser) {
+      console.log('User is authenticated and has set password - redirecting to onboarding');
       router.push('/onboarding');
     }
-  }, [user, router]);
+  }, [user, isNewUser, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white">

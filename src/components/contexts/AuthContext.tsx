@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, getSupabaseClient } from '@/lib/supabase';
 import { User, Session, createClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 
 // Define the shape of our auth context
 type AuthContextType = {
@@ -13,6 +14,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  isNewUser: boolean;
 };
 
 // Create the context with undefined as default value
@@ -23,6 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const router = useRouter();
 
   // Use the getSupabaseClient helper instead of direct access
   // This will never be null because the helper returns a dummy client if needed
@@ -39,6 +43,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Check if this is a new user who hasn't set their password
+        // Supabase doesn't provide a direct way to check this, but we can use metadata
+        // Users created through invites often have certain patterns
+        if (session?.user) {
+          // Check if user was created through invite
+          const userCreatedAt = new Date(session.user.created_at);
+          const now = new Date();
+          const lastPasswordUpdate = session.user.last_sign_in_at 
+            ? new Date(session.user.last_sign_in_at) 
+            : null;
+            
+          // If user was created very recently (within last few hours) and:
+          // 1. Either has never signed in, or
+          // 2. Just signed in for the first time
+          // Then consider them a new user who needs to set password
+          const isRecentlyCreated = now.getTime() - userCreatedAt.getTime() < 24 * 60 * 60 * 1000; // 24 hours
+          const isFirstSignIn = !lastPasswordUpdate || 
+                              (lastPasswordUpdate.getTime() - userCreatedAt.getTime() < 5 * 60 * 1000); // Within 5 minutes of creation
+                              
+          if (isRecentlyCreated && isFirstSignIn) {
+            console.log('New user detected - should set password');
+            setIsNewUser(true);
+            // Redirect to password setup page
+            router.push('/reset-password');
+          } else {
+            setIsNewUser(false);
+          }
+        }
       } catch (error) {
         console.error("Error retrieving session:", error);
       } finally {
@@ -50,9 +83,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Set up auth listener for future changes
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-      (_event, session) => {
+      async (event, session) => {
+        console.log('Auth state changed:', event);
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Handle sign in event specifically
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Similar logic as above to detect new users
+          const userCreatedAt = new Date(session.user.created_at);
+          const now = new Date();
+          const timeSinceCreation = now.getTime() - userCreatedAt.getTime();
+          
+          // If this is a very recent account (created in last few hours)
+          if (timeSinceCreation < 24 * 60 * 60 * 1000) {
+            console.log('New sign-in for recently created account - checking if password needs to be set');
+            setIsNewUser(true);
+            // Redirect to password setup page
+            router.push('/reset-password');
+          } else {
+            setIsNewUser(false);
+          }
+        }
+        
         setLoading(false);
       }
     );
@@ -61,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabaseClient]);
+  }, [supabaseClient, router]);
 
   // Sign in with email and password
   const login = async (email: string, password: string) => {
@@ -109,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     resetPassword,
+    isNewUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
