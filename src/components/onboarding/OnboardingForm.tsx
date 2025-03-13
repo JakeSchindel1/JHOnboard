@@ -365,8 +365,8 @@ export default function OnboardingForm() {
     ? 'include' // Use include for local development
     : 'same-origin'; // Use same-origin for production
 
-  // Set the PDF function URL with a fallback to Azure URL
-  const FUNCTION_URL = process.env.NEXT_PUBLIC_PDF_FUNCTION_URL || 'https://jhonboard-func.azurewebsites.net/api/generatepdf';
+  // Set the PDF function URL with a fallback to the local SWA function
+  const FUNCTION_URL = process.env.NEXT_PUBLIC_PDF_FUNCTION_URL || '/api/generatepdf';
 
   // Log the current environment and function URL for debugging
   useEffect(() => {

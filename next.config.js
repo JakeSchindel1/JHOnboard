@@ -5,6 +5,7 @@ const nextConfig = {
   },
   generateEtags: false,
   distDir: '.next',
+  output: 'standalone',
 }
 
 module.exports = nextConfig
