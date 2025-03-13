@@ -365,7 +365,7 @@ export default function OnboardingForm() {
     ? 'include' // Use include for local development
     : 'same-origin'; // Use same-origin for production
 
-  // Set the PDF function URL with a fallback to the local SWA function
+  // Set the PDF function URL with a fallback to the Next.js API route
   const FUNCTION_URL = process.env.NEXT_PUBLIC_PDF_FUNCTION_URL || '/api/generatepdf';
 
   // Log the current environment and function URL for debugging
