@@ -41,14 +41,33 @@ export async function POST(request: Request) {
     });
     
     const body = await request.json();
-    logger.debug('Request body received', { 
+    
+    // More detailed logging of the incoming data structure
+    logger.debug('Request body structure', {
       requestId,
-      firstName: body.firstName || body.first_name,
-      lastName: body.lastName || body.last_name
+      bodyKeys: Object.keys(body),
+      firstName: body.firstName || body.first_name || 'missing',
+      lastName: body.lastName || body.last_name || 'missing',
+      hasMedicalInfo: !!body.medicalInformation || !!body.medical_information,
+      medicalInfoKeys: body.medicalInformation ? Object.keys(body.medicalInformation) : 
+                      (body.medical_information ? Object.keys(body.medical_information) : []),
+      hasMedications: Array.isArray(body.medications),
+      medicationsLength: Array.isArray(body.medications) ? body.medications.length : 'not an array',
+      hasLegalStatus: !!body.legalStatus || !!body.legal_status,
+      legalStatusKeys: body.legalStatus ? Object.keys(body.legalStatus) :
+                      (body.legal_status ? Object.keys(body.legal_status) : [])
     });
-
+    
     try {
       logger.info('Validating data schema');
+      
+      // Log the received body structure to help with debugging
+      logger.debug('Full body structure', {
+        keys: Object.keys(body),
+        hasMedicalInfo: body.medicalInformation || body.medical_information ? 'yes' : 'no',
+        hasMedications: Array.isArray(body.medications) ? 'yes' : 'no',
+        hasLegalStatus: body.legalStatus || body.legal_status ? 'yes' : 'no'
+      });
       
       // Transform snake_case to camelCase if needed
       // This handles the mismatch between DataApiTransformer and the expected schema
@@ -74,9 +93,40 @@ export async function POST(request: Request) {
           relationship: body.emergency_contact?.relationship,
           otherRelationship: body.emergency_contact?.other_relationship
         },
-        authorizedPeople: body.authorizedPeople,
-        signatures: body.signatures,
-        // Add other fields as needed
+        
+        // Add missing fields that were showing up as undefined
+        medicalInformation: body.medicalInformation || body.medical_information || {
+          dualDiagnosis: false,
+          mat: false,
+          matMedication: '',
+          matMedicationOther: '',
+          needPsychMedication: false
+        },
+        
+        medications: body.medications || [],
+        
+        legalStatus: body.legalStatus || body.legal_status || {
+          hasProbationPretrial: false,
+          hasPendingCharges: false,
+          hasConvictions: false,
+          isWanted: false,
+          isOnBond: false,
+          isSexOffender: false
+        },
+        
+        // Include all other potential fields
+        authorizedPeople: body.authorizedPeople || [],
+        signatures: body.signatures || [],
+        insurances: body.insurances || [],
+        pendingCharges: body.pendingCharges || [],
+        convictions: body.convictions || [],
+        mentalHealth: body.mentalHealth || body.mental_health,
+        drugHistory: body.drugHistory || body.drug_history,
+        recoveryResidences: body.recoveryResidences || body.recovery_residences,
+        treatmentHistory: body.treatmentHistory || body.treatment_history,
+        incarcerationHistory: body.incarcerationHistory || body.incarceration_history,
+        probationHistory: body.probationHistory || body.probation_history,
+        drugTestResults: body.drugTestResults || body.drug_test_results
       };
       
       // Validate signatures (same as before)

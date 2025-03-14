@@ -39,23 +39,39 @@ const HealthStatusSchema = z.object({
 })
 
 const MedicalInformationSchema = z.object({
-  dualDiagnosis: z.boolean(),
-  mat: z.boolean(),
-  matMedication: z.string().optional(),
-  matMedicationOther: z.string().optional(),
-  needPsychMedication: z.boolean()
+  dualDiagnosis: z.boolean().optional().default(false),
+  mat: z.boolean().optional().default(false),
+  matMedication: z.string().optional().default(''),
+  matMedicationOther: z.string().optional().default(''),
+  needPsychMedication: z.boolean().optional().default(false)
+}).optional().default({
+  dualDiagnosis: false,
+  mat: false,
+  matMedication: '',
+  matMedicationOther: '',
+  needPsychMedication: false
 })
 
 const LegalStatusSchema = z.object({
-  hasProbationPretrial: z.boolean(),
-  jurisdiction: z.string().optional(),
-  otherJurisdiction: z.string().optional(),
-  hasPendingCharges: z.boolean(),
-  hasConvictions: z.boolean(),
-  isWanted: z.boolean(),
-  isOnBond: z.boolean(),
-  bondsmanName: z.string().optional(),
-  isSexOffender: z.boolean()
+  hasProbationPretrial: z.boolean().optional().default(false),
+  jurisdiction: z.string().optional().default(''),
+  otherJurisdiction: z.string().optional().default(''),
+  hasPendingCharges: z.boolean().optional().default(false),
+  hasConvictions: z.boolean().optional().default(false),
+  isWanted: z.boolean().optional().default(false),
+  isOnBond: z.boolean().optional().default(false),
+  bondsmanName: z.string().optional().default(''),
+  isSexOffender: z.boolean().optional().default(false)
+}).optional().default({
+  hasProbationPretrial: false,
+  jurisdiction: '',
+  otherJurisdiction: '',
+  hasPendingCharges: false,
+  hasConvictions: false,
+  isWanted: false,
+  isOnBond: false,
+  bondsmanName: '',
+  isSexOffender: false
 })
 
 export const SignatureSchema = z.object({
@@ -102,7 +118,7 @@ export const OnboardingSchema = z.object({
 
   // Medical Information
   medicalInformation: MedicalInformationSchema,
-  medications: z.array(z.string()),
+  medications: z.array(z.string()).optional().default([]),
 
   // Authorized People
   authorizedPeople: z.array(AuthorizedPersonSchema),
