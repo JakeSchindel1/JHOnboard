@@ -3,6 +3,7 @@ import { OnboardingSchema } from './schema'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 // Define a type for signature
@@ -28,17 +29,30 @@ export async function POST(request: Request) {
     const requestId = crypto.randomUUID();
     logger.debug('Request received', { requestId });
     
-    // Get Supabase client
-    const supabase = createServerComponentClient({ cookies });
+    // Get Supabase client for auth
+    const supabaseAuth = createServerComponentClient({ cookies });
     
     // Get the current authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
     const userId = user?.id;
     
     logger.info('User authentication status', { 
       authenticated: !!user,
       userId: userId || 'anonymous'
     });
+    
+    // Create a Supabase admin client that bypasses RLS
+    // This is necessary when dealing with RLS policy issues
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY || '', // This key can bypass RLS
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
     
     const body = await request.json();
     

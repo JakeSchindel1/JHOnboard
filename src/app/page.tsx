@@ -7,12 +7,12 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LoginModal } from '@/components/login/LoginModal';
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, LogOut } from "lucide-react";
 
 export default function LandingPage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const { user, isNewUser } = useAuth();
+  const { user, isNewUser, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -25,8 +25,29 @@ export default function LandingPage() {
     }
   }, [user, isNewUser, router]);
 
+  // Handle logout button click
+  const handleLogout = async () => {
+    await logout();
+    // No need to redirect as the auth state change will trigger the navigation
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white">
+      {/* Sign Out Button - Only shown when user is logged in */}
+      {user && (
+        <div className="absolute top-4 right-4 z-10">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleLogout}
+            className="flex items-center gap-2 bg-white shadow-md hover:bg-gray-100"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
+      )}
+      
       {/* Main Content */}
       <main className="min-h-screen flex flex-col items-center justify-center p-4 relative">
         <div className={`flex flex-col items-center space-y-12 max-w-4xl w-full transition-all duration-1000 ${
