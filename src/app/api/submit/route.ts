@@ -24,37 +24,145 @@ const FlexibleSignatureSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    logger.info('Received POST request');
+    logger.info('Starting form submission process');
     
     const requestId = crypto.randomUUID();
-    logger.debug('Request received', { requestId });
+    logger.debug('Request ID generated', { requestId });
     
     // Get Supabase client for auth
-    const supabaseAuth = createServerComponentClient({ cookies });
+    let supabaseAuth;
+    try {
+      logger.debug('Initializing Supabase auth client');
+      supabaseAuth = createServerComponentClient({ cookies });
+      logger.debug('Supabase auth client initialized successfully');
+    } catch (error: unknown) {
+      const authClientError = error as Error;
+      logger.error('Failed to create Supabase auth client', { 
+        error: authClientError,
+        message: authClientError.message,
+        stack: authClientError.stack 
+      });
+      return NextResponse.json({
+        success: false,
+        message: 'Authentication service unavailable',
+        error: 'Failed to initialize authentication'
+      }, { status: 500 });
+    }
     
     // Get the current authenticated user
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    let user;
+    try {
+      logger.debug('Attempting to get authenticated user');
+      const { data: { user: authUser }, error: userError } = await supabaseAuth.auth.getUser();
+      
+      if (userError) {
+        logger.error('Failed to get authenticated user', { 
+          error: userError,
+          message: userError.message 
+        });
+        return NextResponse.json({
+          success: false,
+          message: 'Authentication failed',
+          error: 'Failed to verify user authentication'
+        }, { status: 401 });
+      }
+      
+      if (!authUser) {
+        logger.warn('No authenticated user found');
+        return NextResponse.json({
+          success: false,
+          message: 'Authentication required',
+          error: 'No authenticated user found'
+        }, { status: 401 });
+      }
+      
+      user = authUser;
+      logger.info('User authenticated successfully', { userId: user.id });
+    } catch (error: unknown) {
+      const getUserError = error as Error;
+      logger.error('Error getting authenticated user', { 
+        error: getUserError,
+        message: getUserError.message,
+        stack: getUserError.stack 
+      });
+      return NextResponse.json({
+        success: false,
+        message: 'Authentication error',
+        error: 'Failed to verify user authentication'
+      }, { status: 401 });
+    }
+    
     const userId = user?.id;
     
     logger.info('User authentication status', { 
       authenticated: !!user,
       userId: userId || 'anonymous'
     });
+
+    if (!userId) {
+      logger.warn('Unauthenticated request attempt');
+      return NextResponse.json({
+        success: false,
+        message: 'Authentication required',
+        error: 'User must be authenticated to submit form'
+      }, { status: 401 });
+    }
     
     // Create a Supabase admin client that bypasses RLS
-    // This is necessary when dealing with RLS policy issues
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY || '', // This key can bypass RLS
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
+    let supabase;
+    try {
+      logger.debug('Initializing Supabase admin client');
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        throw new Error('Missing required Supabase configuration');
       }
-    );
+      
+      supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
+      logger.debug('Supabase admin client initialized successfully');
+    } catch (error: unknown) {
+      const clientError = error as Error;
+      logger.error('Failed to create Supabase admin client', { 
+        error: clientError,
+        message: clientError.message,
+        stack: clientError.stack 
+      });
+      return NextResponse.json({
+        success: false,
+        message: 'Database service unavailable',
+        error: 'Failed to initialize database connection'
+      }, { status: 500 });
+    }
     
-    const body = await request.json();
+    let body;
+    try {
+      logger.debug('Parsing request body');
+      body = await request.json();
+      logger.debug('Request body parsed successfully', {
+        bodyKeys: Object.keys(body),
+        hasPersonalInfo: !!body.firstName && !!body.lastName,
+        hasEmergencyContact: !!body.emergencyContact,
+        hasSignatures: Array.isArray(body.signatures) && body.signatures.length > 0
+      });
+    } catch (error: unknown) {
+      const parseError = error as Error;
+      logger.error('Failed to parse request body', { 
+        error: parseError,
+        message: parseError.message 
+      });
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid request format',
+        error: 'Failed to parse request body'
+      }, { status: 400 });
+    }
     
     // More detailed logging of the incoming data structure
     logger.debug('Request body structure', {
@@ -200,29 +308,271 @@ export async function POST(request: Request) {
           .single();
         
         if (participantError) {
+          logger.error('Failed to insert participant', { error: participantError });
           throw new Error(`Failed to insert participant: ${participantError.message}`);
         }
         
         const participantId = participant.id;
+        logger.info('Participant created successfully', { participantId });
         
         // Insert health status
-        const { error: healthError } = await supabase
-          .from('health_status')
-          .insert({
-            participant_id: participantId,
-            pregnant: validatedData.healthStatus.pregnant,
-            developmentally_disabled: validatedData.healthStatus.developmentallyDisabled,
-            // ... other health fields ...
-            created_by: userId
-          });
-        
-        if (healthError) {
-          throw new Error(`Failed to insert health status: ${healthError.message}`);
+        if (validatedData.healthStatus) {
+          logger.debug('Inserting health status');
+          const { error: healthError } = await supabase
+            .from('health_status')
+            .insert({
+              participant_id: participantId,
+              pregnant: validatedData.healthStatus.pregnant || false,
+              developmentally_disabled: validatedData.healthStatus.developmentallyDisabled || false,
+              co_occurring_disorder: validatedData.healthStatus.coOccurringDisorder || false,
+              doc_supervision: validatedData.healthStatus.docSupervision || false,
+              felon: validatedData.healthStatus.felon || false,
+              physically_handicapped: validatedData.healthStatus.physicallyHandicapped || false,
+              post_partum: validatedData.healthStatus.postPartum || false,
+              primary_female_caregiver: validatedData.healthStatus.primaryFemaleCaregiver || false,
+              recently_incarcerated: validatedData.healthStatus.recentlyIncarcerated || false,
+              sex_offender: validatedData.healthStatus.sexOffender || false,
+              lgbtq: validatedData.healthStatus.lgbtq || false,
+              veteran: validatedData.healthStatus.veteran || false,
+              insulin_dependent: validatedData.healthStatus.insulinDependent || false,
+              history_of_seizures: validatedData.healthStatus.historyOfSeizures || false,
+              race: validatedData.healthStatus.race || '',
+              ethnicity: validatedData.healthStatus.ethnicity || '',
+              household_income: validatedData.healthStatus.householdIncome || '',
+              employment_status: validatedData.healthStatus.employmentStatus || '',
+              created_by: userId
+            });
+          
+          if (healthError) {
+            logger.error('Failed to insert health status', { error: healthError });
+            throw new Error(`Failed to insert health status: ${healthError.message}`);
+          }
+          logger.debug('Health status inserted successfully');
         }
         
-        // ... Continue with other inserts (vehicle, emergency contacts, etc.) ...
+        // Insert vehicle information if present
+        if (validatedData.vehicle) {
+          logger.debug('Inserting vehicle information');
+          const { error: vehicleError } = await supabase
+            .from('vehicles')
+            .insert({
+              participant_id: participantId,
+              make: validatedData.vehicle.make || '',
+              model: validatedData.vehicle.model || '',
+              tag_number: validatedData.vehicle.tagNumber || '',
+              insured: validatedData.vehicle.insured || false,
+              insurance_type: validatedData.vehicle.insuranceType || '',
+              policy_number: validatedData.vehicle.policyNumber || '',
+              created_by: userId
+            });
+          
+          if (vehicleError) {
+            logger.error('Failed to insert vehicle information', { error: vehicleError });
+            throw new Error(`Failed to insert vehicle information: ${vehicleError.message}`);
+          }
+          logger.debug('Vehicle information inserted successfully');
+        }
+        
+        // Insert emergency contact
+        if (validatedData.emergencyContact) {
+          logger.debug('Inserting emergency contact');
+          const { error: emergencyContactError } = await supabase
+            .from('emergency_contacts')
+            .insert({
+              participant_id: participantId,
+              first_name: validatedData.emergencyContact.firstName,
+              last_name: validatedData.emergencyContact.lastName,
+              phone: validatedData.emergencyContact.phone,
+              relationship: validatedData.emergencyContact.relationship,
+              other_relationship: validatedData.emergencyContact.otherRelationship || '',
+              created_by: userId
+            });
+          
+          if (emergencyContactError) {
+            logger.error('Failed to insert emergency contact', { error: emergencyContactError });
+            throw new Error(`Failed to insert emergency contact: ${emergencyContactError.message}`);
+          }
+          logger.debug('Emergency contact inserted successfully');
+        }
+        
+        // Insert medical information
+        if (validatedData.medicalInformation) {
+          logger.debug('Inserting medical information');
+          const { error: medicalError } = await supabase
+            .from('medical_information')
+            .insert({
+              participant_id: participantId,
+              dual_diagnosis: validatedData.medicalInformation.dualDiagnosis || false,
+              mat: validatedData.medicalInformation.mat || false,
+              mat_medication: validatedData.medicalInformation.matMedication || '',
+              mat_medication_other: validatedData.medicalInformation.matMedicationOther || '',
+              need_psych_medication: validatedData.medicalInformation.needPsychMedication || false,
+              created_by: userId
+            });
+          
+          if (medicalError) {
+            logger.error('Failed to insert medical information', { error: medicalError });
+            throw new Error(`Failed to insert medical information: ${medicalError.message}`);
+          }
+          logger.debug('Medical information inserted successfully');
+        }
+        
+        // Insert medications
+        if (validatedData.medications && validatedData.medications.length > 0) {
+          logger.debug('Inserting medications');
+          const medicationsToInsert = validatedData.medications.map(med => ({
+            participant_id: participantId,
+            medication_name: med,
+            created_by: userId
+          }));
+          
+          const { error: medicationsError } = await supabase
+            .from('medications')
+            .insert(medicationsToInsert);
+          
+          if (medicationsError) {
+            logger.error('Failed to insert medications', { error: medicationsError });
+            throw new Error(`Failed to insert medications: ${medicationsError.message}`);
+          }
+          logger.debug('Medications inserted successfully');
+        }
+        
+        // Insert authorized people
+        if (validatedData.authorizedPeople && validatedData.authorizedPeople.length > 0) {
+          logger.debug('Inserting authorized people');
+          const authorizedPeopleToInsert = validatedData.authorizedPeople.map(person => ({
+            participant_id: participantId,
+            first_name: person.firstName,
+            last_name: person.lastName,
+            relationship: person.relationship,
+            phone: person.phone,
+            created_by: userId
+          }));
+          
+          const { error: authorizedPeopleError } = await supabase
+            .from('authorized_people')
+            .insert(authorizedPeopleToInsert);
+          
+          if (authorizedPeopleError) {
+            logger.error('Failed to insert authorized people', { error: authorizedPeopleError });
+            throw new Error(`Failed to insert authorized people: ${authorizedPeopleError.message}`);
+          }
+          logger.debug('Authorized people inserted successfully');
+        }
+        
+        // Insert legal status
+        if (validatedData.legalStatus) {
+          logger.debug('Inserting legal status');
+          const { error: legalStatusError } = await supabase
+            .from('legal_status')
+            .insert({
+              participant_id: participantId,
+              has_probation_pretrial: validatedData.legalStatus.hasProbationPretrial || false,
+              jurisdiction: validatedData.legalStatus.jurisdiction || '',
+              other_jurisdiction: validatedData.legalStatus.otherJurisdiction || '',
+              has_pending_charges: validatedData.legalStatus.hasPendingCharges || false,
+              has_convictions: validatedData.legalStatus.hasConvictions || false,
+              is_wanted: validatedData.legalStatus.isWanted || false,
+              is_on_bond: validatedData.legalStatus.isOnBond || false,
+              bondsman_name: validatedData.legalStatus.bondsmanName || '',
+              is_sex_offender: validatedData.legalStatus.isSexOffender || false,
+              created_by: userId
+            });
+          
+          if (legalStatusError) {
+            logger.error('Failed to insert legal status', { error: legalStatusError });
+            throw new Error(`Failed to insert legal status: ${legalStatusError.message}`);
+          }
+          logger.debug('Legal status inserted successfully');
+        }
+        
+        // Insert ASAM assessment data
+        if (validatedData.mentalHealth) {
+          logger.debug('Inserting mental health information');
+          const { error: mentalHealthError } = await supabase
+            .from('mental_health')
+            .insert({
+              participant_id: participantId,
+              entries: validatedData.mentalHealth.entries || [],
+              suicidal_ideation: validatedData.mentalHealth.suicidalIdeation || 'no',
+              homicidal_ideation: validatedData.mentalHealth.homicidalIdeation || 'no',
+              hallucinations: validatedData.mentalHealth.hallucinations || 'no',
+              created_by: userId
+            });
+          
+          if (mentalHealthError) {
+            logger.error('Failed to insert mental health information', { error: mentalHealthError });
+            throw new Error(`Failed to insert mental health information: ${mentalHealthError.message}`);
+          }
+          logger.debug('Mental health information inserted successfully');
+        }
+        
+        // Insert drug history
+        if (validatedData.drugHistory && validatedData.drugHistory.length > 0) {
+          logger.debug('Inserting drug history');
+          const drugHistoryToInsert = validatedData.drugHistory.map(entry => ({
+            participant_id: participantId,
+            drug_type: entry.drugType,
+            ever_used: entry.everUsed || 'no',
+            date_last_use: entry.dateLastUse || '',
+            frequency: entry.frequency || '',
+            intravenous: entry.intravenous || 'no',
+            total_years: entry.totalYears || '',
+            amount: entry.amount || '',
+            created_by: userId
+          }));
+          
+          const { error: drugHistoryError } = await supabase
+            .from('drug_history')
+            .insert(drugHistoryToInsert);
+          
+          if (drugHistoryError) {
+            logger.error('Failed to insert drug history', { error: drugHistoryError });
+            throw new Error(`Failed to insert drug history: ${drugHistoryError.message}`);
+          }
+          logger.debug('Drug history inserted successfully');
+        }
+        
+        // Insert signatures
+        if (validatedData.signatures && validatedData.signatures.length > 0) {
+          logger.debug('Inserting signatures');
+          const signaturesToInsert = validatedData.signatures.map((sig: {
+            signatureType: string;
+            signature: string;
+            signatureId: string;
+            signatureTimestamp: Date;
+            witnessSignature?: string;
+            witnessTimestamp?: Date | null;
+            witnessSignatureId?: string;
+            agreed?: boolean;
+            updates?: Record<string, any>;
+          }) => ({
+            participant_id: participantId,
+            signature_type: sig.signatureType,
+            signature: sig.signature,
+            signature_id: sig.signatureId,
+            signature_timestamp: sig.signatureTimestamp,
+            witness_signature: sig.witnessSignature || '',
+            witness_timestamp: sig.witnessTimestamp || null,
+            witness_signature_id: sig.witnessSignatureId || '',
+            agreed: sig.agreed || false,
+            updates: sig.updates || {},
+            created_by: userId
+          }));
+          
+          const { error: signaturesError } = await supabase
+            .from('signatures')
+            .insert(signaturesToInsert);
+          
+          if (signaturesError) {
+            logger.error('Failed to insert signatures', { error: signaturesError });
+            throw new Error(`Failed to insert signatures: ${signaturesError.message}`);
+          }
+          logger.debug('Signatures inserted successfully');
+        }
         
         // Return success response
+        logger.info('All data saved successfully');
         return NextResponse.json({
           success: true,
           message: 'Participant data saved successfully',
@@ -239,29 +589,38 @@ export async function POST(request: Request) {
           body: JSON.stringify(normalizedBody, null, 2)
         });
         
-        throw parseError;
+        return NextResponse.json({
+          success: false,
+          message: 'Invalid form data',
+          error: parseError instanceof Error ? parseError.message : 'Validation failed'
+        }, { status: 400 });
       }
-    } catch (validationError: any) {
-      logger.error('Validation error', validationError);
+    } catch (error: any) {
+      logger.error('Unhandled API error', { 
+        error: error,
+        message: error.message,
+        stack: error.stack,
+        type: error.constructor.name
+      });
       
       return NextResponse.json({
         success: false,
-        message: 'Invalid data submitted',
-        error: validationError.message,
-        details: validationError.errors || validationError.message
-      }, { 
-        status: 400 
-      });
+        message: 'Failed to process request',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred'
+      }, { status: 500 });
     }
   } catch (error: any) {
-    logger.error('Unhandled API error', error);
-
+    logger.error('Unhandled API error', { 
+      error: error,
+      message: error.message,
+      stack: error.stack,
+      type: error.constructor.name
+    });
+    
     return NextResponse.json({
       success: false,
       message: 'Failed to process request',
-      error: 'An unexpected error occurred'
-    }, { 
-      status: 500 
-    });
+      error: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred'
+    }, { status: 500 });
   }
 }

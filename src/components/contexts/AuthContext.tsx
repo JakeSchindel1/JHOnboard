@@ -26,11 +26,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isNewUser, setIsNewUser] = useState(false);
+  // Track if we've already redirected to password reset
+  const [hasRedirectedToPasswordReset, setHasRedirectedToPasswordReset] = useState(false);
+  // Keep track of sign-in source to prevent redirect loops
+  const [signInSource, setSignInSource] = useState<string | null>(null);
   const router = useRouter();
 
   // Use the getSupabaseClient helper instead of direct access
   // This will never be null because the helper returns a dummy client if needed
   const supabaseClient = getSupabaseClient() as NonNullable<ReturnType<typeof getSupabaseClient>>;
+
+  // Function to check if a user needs to set password
+  const checkIfNeedsPasswordReset = (user: User): boolean => {
+    // Extract URL parameters to see if this is a password reset flow
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      
+      // If we're already on the reset password page, don't redirect again
+      if (window.location.pathname === '/reset-password') {
+        return false;
+      }
+      
+      // If URL contains password reset tokens, don't redirect again
+      if (urlParams.has('token') || urlParams.has('invite') || hashParams.has('access_token')) {
+        return false;
+      }
+    }
+    
+    // Check if user metadata indicates they came from an invite or password reset
+    const userMetadata = user.user_metadata || {};
+    
+    // If session already contains a sign-in event, user has authenticated before
+    if (user.last_sign_in_at && signInSource !== 'manual_login') {
+      return false;
+    }
+    
+    // Check for invite specific flags in metadata
+    const isInvitedUser = Boolean(
+      userMetadata.invited ||
+      userMetadata.invitation_sent_at
+    );
+    
+    // If this is a brand new account created within last hour
+    const userCreatedAt = new Date(user.created_at);
+    const now = new Date();
+    const minutesSinceCreation = (now.getTime() - userCreatedAt.getTime()) / (1000 * 60);
+    
+    // Only redirect very new accounts (within 60 minutes) that:
+    // 1. Have never signed in before, OR
+    // 2. Are clearly invite-based accounts 
+    return (minutesSinceCreation < 60 && !user.last_sign_in_at) || isInvitedUser;
+  }
 
   // Check for session when the component mounts
   useEffect(() => {
@@ -45,31 +92,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         
         // Check if this is a new user who hasn't set their password
-        // Supabase doesn't provide a direct way to check this, but we can use metadata
-        // Users created through invites often have certain patterns
-        if (session?.user) {
-          // Check if user was created through invite
-          const userCreatedAt = new Date(session.user.created_at);
-          const now = new Date();
-          const lastPasswordUpdate = session.user.last_sign_in_at 
-            ? new Date(session.user.last_sign_in_at) 
-            : null;
-            
-          // If user was created very recently (within last few hours) and:
-          // 1. Either has never signed in, or
-          // 2. Just signed in for the first time
-          // Then consider them a new user who needs to set password
-          const isRecentlyCreated = now.getTime() - userCreatedAt.getTime() < 24 * 60 * 60 * 1000; // 24 hours
-          const isFirstSignIn = !lastPasswordUpdate || 
-                              (lastPasswordUpdate.getTime() - userCreatedAt.getTime() < 5 * 60 * 1000); // Within 5 minutes of creation
-                              
-          if (isRecentlyCreated && isFirstSignIn) {
-            console.log('New user detected - should set password');
-            setIsNewUser(true);
-            // Redirect to password setup page
+        if (session?.user && !hasRedirectedToPasswordReset) {
+          const needsPasswordReset = checkIfNeedsPasswordReset(session.user);
+          
+          setIsNewUser(needsPasswordReset);
+          
+          if (needsPasswordReset) {
+            console.log('New user detected - redirecting to password setup');
+            setHasRedirectedToPasswordReset(true);
             router.push('/reset-password');
-          } else {
-            setIsNewUser(false);
           }
         }
       } catch (error) {
@@ -88,22 +119,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Handle sign in event specifically
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Similar logic as above to detect new users
-          const userCreatedAt = new Date(session.user.created_at);
-          const now = new Date();
-          const timeSinceCreation = now.getTime() - userCreatedAt.getTime();
-          
-          // If this is a very recent account (created in last few hours)
-          if (timeSinceCreation < 24 * 60 * 60 * 1000) {
-            console.log('New sign-in for recently created account - checking if password needs to be set');
-            setIsNewUser(true);
-            // Redirect to password setup page
-            router.push('/reset-password');
-          } else {
-            setIsNewUser(false);
+        // Only handle certain events that might require password reset
+        if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+          // Only check for password reset needs if we haven't already redirected
+          if (!hasRedirectedToPasswordReset) {
+            const needsPasswordReset = checkIfNeedsPasswordReset(session.user);
+            
+            setIsNewUser(needsPasswordReset);
+            
+            if (needsPasswordReset) {
+              console.log('User needs to set password - redirecting to password setup');
+              setHasRedirectedToPasswordReset(true);
+              router.push('/reset-password');
+            }
           }
+        } else if (event === 'SIGNED_OUT') {
+          // Reset flags when user signs out
+          setIsNewUser(false);
+          setHasRedirectedToPasswordReset(false);
+          setSignInSource(null);
         }
         
         setLoading(false);
@@ -114,11 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabaseClient, router]);
+  }, [supabaseClient, router, hasRedirectedToPasswordReset]);
 
   // Sign in with email and password
   const login = async (email: string, password: string) => {
     try {
+      // Set source to track this was a manual login
+      setSignInSource('manual_login');
+      
       const { error } = await supabaseClient.auth.signInWithPassword({
         email,
         password,
@@ -135,6 +172,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await supabaseClient.auth.signOut();
+      // Reset flags
+      setIsNewUser(false);
+      setHasRedirectedToPasswordReset(false);
+      setSignInSource(null);
     } catch (error) {
       console.error('Logout error:', error);
     }

@@ -32,10 +32,10 @@ const HealthStatusSchema = z.object({
   veteran: z.boolean().optional().default(false),
   insulinDependent: z.boolean().optional().default(false),
   historyOfSeizures: z.boolean().optional().default(false),
-  race: z.string().min(1, 'Race is required'),
-  ethnicity: z.string().min(1, 'Ethnicity is required'),
-  householdIncome: z.string().min(1, 'Household income is required'),
-  employmentStatus: z.string().min(1, 'Employment status is required')
+  race: z.string().optional(),
+  ethnicity: z.string().optional(),
+  householdIncome: z.string().optional(),
+  employmentStatus: z.string().optional()
 })
 
 const MedicalInformationSchema = z.object({
@@ -74,8 +74,9 @@ const LegalStatusSchema = z.object({
   isSexOffender: false
 })
 
+// Make signature type more flexible
 export const SignatureSchema = z.object({
-  signatureType: z.enum(['house_rules', 'treat_others', 'disclosure', 'asam_assessment', 'resident_as_guest', 'criminal_history']),
+  signatureType: z.string(), // Allow any string for signature type
   signature: z.string(),
   signatureId: z.string(),
   signatureTimestamp: z.string().transform(str => new Date(str)),
@@ -84,6 +85,56 @@ export const SignatureSchema = z.object({
   witnessSignatureId: z.string().optional(),
   agreed: z.boolean().optional(),
   updates: z.record(z.any()).optional()
+})
+
+// Add ASAM-specific schemas
+const MentalHealthEntrySchema = z.object({
+  diagnosis: z.string().optional(),
+  dateOfDiagnosis: z.string().optional(),
+  prescribedMedication: z.string().optional(),
+  medicationCompliant: z.string().optional(),
+  currentSymptoms: z.string().optional(),
+  describeSymptoms: z.string().optional()
+})
+
+const MentalHealthSchema = z.object({
+  entries: z.array(MentalHealthEntrySchema).optional(),
+  suicidalIdeation: z.string().optional(),
+  homicidalIdeation: z.string().optional(),
+  hallucinations: z.string().optional()
+}).optional()
+
+const DrugHistoryEntrySchema = z.object({
+  drugType: z.string(),
+  everUsed: z.string().optional(),
+  dateLastUse: z.string().optional(),
+  frequency: z.string().optional(),
+  intravenous: z.string().optional(),
+  totalYears: z.string().optional(),
+  amount: z.string().optional()
+})
+
+const ProbationHistoryEntrySchema = z.object({
+  type: z.string().optional(),
+  jurisdiction: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  officerName: z.string().optional(),
+  officerEmail: z.string().optional(),
+  officerPhone: z.string().optional()
+})
+
+const HistoryEntrySchema = z.object({
+  type: z.string().optional(),
+  estimatedDate: z.string().optional(),
+  location: z.string().optional()
+})
+
+const RecoveryResidenceSchema = z.object({
+  name: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  location: z.string().optional()
 })
 
 export const OnboardingSchema = z.object({
@@ -131,6 +182,18 @@ export const OnboardingSchema = z.object({
   })).optional(),
   convictions: z.array(z.object({
     offense: z.string()
+  })).optional(),
+
+  // ASAM Assessment Data
+  mentalHealth: MentalHealthSchema,
+  drugHistory: z.array(DrugHistoryEntrySchema).optional(),
+  recoveryResidences: z.array(RecoveryResidenceSchema).optional(),
+  treatmentHistory: z.array(HistoryEntrySchema).optional(),
+  incarcerationHistory: z.array(HistoryEntrySchema).optional(),
+  probationHistory: z.array(ProbationHistoryEntrySchema).optional(),
+  drugTestResults: z.array(z.object({
+    test_type: z.string(),
+    result: z.string()
   })).optional(),
 
   // Signatures
