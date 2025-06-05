@@ -19,6 +19,9 @@ export default function ResetPassword() {
   const { user, isNewUser } = useAuth();
 
   useEffect(() => {
+    // DEBUG: Log the Supabase URL being used
+    console.log('🔧 Debug - Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    
     // First, check if this is a logged-in user who needs to set their password
     if (user && isNewUser) {
       console.log('New user detected, showing password setup form');
