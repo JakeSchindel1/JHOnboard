@@ -3,7 +3,6 @@ import { OnboardingSchema } from './schema'
 import { logger } from '@/lib/logger'
 import { z } from 'zod'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
 // Define a type for signature
@@ -12,6 +11,11 @@ interface Signature {
   signatureId: string;
   signatureTimestamp: string;
   witnessTimestamp?: string;
+  signature?: string;
+  witnessSignature?: string;
+  witnessSignatureId?: string;
+  agreed?: boolean;
+  updates?: Record<string, any>;
 }
 
 // Create a modified schema for signature types to allow any string value
@@ -19,33 +23,38 @@ const FlexibleSignatureSchema = z.object({
   signatureType: z.string(),
   signatureId: z.string(),
   signatureTimestamp: z.string(),
-  witnessTimestamp: z.string().optional()
+  witnessTimestamp: z.string().optional(),
+  signature: z.string().optional(),
+  witnessSignature: z.string().optional(),
+  witnessSignatureId: z.string().optional(),
+  agreed: z.boolean().optional(),
+  updates: z.record(z.any()).optional()
 });
 
 export async function POST(request: Request) {
   try {
-    logger.info('Starting form submission process');
+    logger.info('Starting Supabase form submission process');
     
     const requestId = crypto.randomUUID();
     logger.debug('Request ID generated', { requestId });
     
     // Get Supabase client for auth
-    let supabaseAuth;
+    let supabase;
     try {
-      logger.debug('Initializing Supabase auth client');
-      supabaseAuth = createServerComponentClient({ cookies });
-      logger.debug('Supabase auth client initialized successfully');
+      logger.debug('Initializing Supabase client');
+      supabase = createServerComponentClient({ cookies });
+      logger.debug('Supabase client initialized successfully');
     } catch (error: unknown) {
       const authClientError = error as Error;
-      logger.error('Failed to create Supabase auth client', { 
+      logger.error('Failed to create Supabase client', { 
         error: authClientError,
         message: authClientError.message,
         stack: authClientError.stack 
       });
       return NextResponse.json({
         success: false,
-        message: 'Authentication service unavailable',
-        error: 'Failed to initialize authentication'
+        message: 'Database service unavailable',
+        error: 'Failed to initialize database connection'
       }, { status: 500 });
     }
     
@@ -53,7 +62,7 @@ export async function POST(request: Request) {
     let user;
     try {
       logger.debug('Attempting to get authenticated user');
-      const { data: { user: authUser }, error: userError } = await supabaseAuth.auth.getUser();
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
         logger.error('Failed to get authenticated user', { 
@@ -108,39 +117,6 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
     
-    // Create a Supabase admin client that bypasses RLS
-    let supabase;
-    try {
-      logger.debug('Initializing Supabase admin client');
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        throw new Error('Missing required Supabase configuration');
-      }
-      
-      supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY,
-        {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false
-          }
-        }
-      );
-      logger.debug('Supabase admin client initialized successfully');
-    } catch (error: unknown) {
-      const clientError = error as Error;
-      logger.error('Failed to create Supabase admin client', { 
-        error: clientError,
-        message: clientError.message,
-        stack: clientError.stack 
-      });
-      return NextResponse.json({
-        success: false,
-        message: 'Database service unavailable',
-        error: 'Failed to initialize database connection'
-      }, { status: 500 });
-    }
-    
     let body;
     try {
       logger.debug('Parsing request body');
@@ -192,7 +168,6 @@ export async function POST(request: Request) {
       });
       
       // Transform snake_case to camelCase if needed
-      // This handles the mismatch between DataApiTransformer and the expected schema
       const normalizedBody = {
         firstName: body.firstName || body.first_name,
         lastName: body.lastName || body.last_name,
@@ -251,352 +226,332 @@ export async function POST(request: Request) {
         drugTestResults: body.drugTestResults || body.drug_test_results
       };
       
-      // Validate signatures (same as before)
+      // Validate signatures separately
+      let validatedSignatures: Signature[] = [];
       if (normalizedBody.signatures && Array.isArray(normalizedBody.signatures)) {
         logger.info(`Found ${normalizedBody.signatures.length} signatures to validate`);
         
-        // Validate each signature directly
-        const validatedSignatures: Signature[] = [];
         for (const signature of normalizedBody.signatures) {
           try {
-            // Use our flexible signature schema
             const validSig = FlexibleSignatureSchema.parse(signature);
             validatedSignatures.push(validSig);
           } catch (sigError) {
             logger.warn(`Invalid signature format: ${JSON.stringify(signature)}`, { error: sigError });
-            // Don't add invalid signatures
           }
         }
         
-        // Replace the signatures array with validated ones
-        normalizedBody.signatures = validatedSignatures;
         logger.info(`Validated ${validatedSignatures.length} signatures`);
       }
       
-      // Validate rest of schema (unchanged)
-      const { signatures, ...otherData } = normalizedBody;
+      // Start database transaction
+      logger.info('Starting database transaction');
       
-      try {
-        // First try to validate the data with the schema
-        const validatedBase = OnboardingSchema.omit({ signatures: true }).parse(otherData);
-        
-        // Combine data (unchanged)
-        const validatedData = {
-          ...validatedBase,
-          signatures: normalizedBody.signatures || []
-        };
-        
-        logger.info('Data validation passed');
-        
-        // Insert main participant data
-        const { data: participant, error: participantError } = await supabase
-          .from('participants')
-          .insert({
-            first_name: validatedData.firstName,
-            last_name: validatedData.lastName,
-            intake_date: validatedData.intakeDate,
-            housing_location: validatedData.housingLocation,
-            date_of_birth: validatedData.dateOfBirth,
-            social_security_number: validatedData.socialSecurityNumber,
-            sex: validatedData.sex,
-            email: validatedData.email,
-            drivers_license_number: validatedData.driversLicenseNumber,
-            phone_number: validatedData.phoneNumber,
-            created_by: userId
-          })
-          .select('id')
-          .single();
-        
-        if (participantError) {
-          logger.error('Failed to insert participant', { error: participantError });
-          throw new Error(`Failed to insert participant: ${participantError.message}`);
-        }
-        
-        const participantId = participant.id;
-        logger.info('Participant created successfully', { participantId });
-        
-        // Insert health status
-        if (validatedData.healthStatus) {
-          logger.debug('Inserting health status');
-          const { error: healthError } = await supabase
-            .from('health_status')
-            .insert({
-              participant_id: participantId,
-              pregnant: validatedData.healthStatus.pregnant || false,
-              developmentally_disabled: validatedData.healthStatus.developmentallyDisabled || false,
-              co_occurring_disorder: validatedData.healthStatus.coOccurringDisorder || false,
-              doc_supervision: validatedData.healthStatus.docSupervision || false,
-              felon: validatedData.healthStatus.felon || false,
-              physically_handicapped: validatedData.healthStatus.physicallyHandicapped || false,
-              post_partum: validatedData.healthStatus.postPartum || false,
-              primary_female_caregiver: validatedData.healthStatus.primaryFemaleCaregiver || false,
-              recently_incarcerated: validatedData.healthStatus.recentlyIncarcerated || false,
-              sex_offender: validatedData.healthStatus.sexOffender || false,
-              lgbtq: validatedData.healthStatus.lgbtq || false,
-              veteran: validatedData.healthStatus.veteran || false,
-              insulin_dependent: validatedData.healthStatus.insulinDependent || false,
-              history_of_seizures: validatedData.healthStatus.historyOfSeizures || false,
-              race: validatedData.healthStatus.race || '',
-              ethnicity: validatedData.healthStatus.ethnicity || '',
-              household_income: validatedData.healthStatus.householdIncome || '',
-              employment_status: validatedData.healthStatus.employmentStatus || '',
-              created_by: userId
-            });
-          
-          if (healthError) {
-            logger.error('Failed to insert health status', { error: healthError });
-            throw new Error(`Failed to insert health status: ${healthError.message}`);
-          }
-          logger.debug('Health status inserted successfully');
-        }
-        
-        // Insert vehicle information if present
-        if (validatedData.vehicle) {
-          logger.debug('Inserting vehicle information');
-          const { error: vehicleError } = await supabase
-            .from('vehicles')
-            .insert({
-              participant_id: participantId,
-              make: validatedData.vehicle.make || '',
-              model: validatedData.vehicle.model || '',
-              tag_number: validatedData.vehicle.tagNumber || '',
-              insured: validatedData.vehicle.insured || false,
-              insurance_type: validatedData.vehicle.insuranceType || '',
-              policy_number: validatedData.vehicle.policyNumber || '',
-              created_by: userId
-            });
-          
-          if (vehicleError) {
-            logger.error('Failed to insert vehicle information', { error: vehicleError });
-            throw new Error(`Failed to insert vehicle information: ${vehicleError.message}`);
-          }
-          logger.debug('Vehicle information inserted successfully');
-        }
-        
-        // Insert emergency contact
-        if (validatedData.emergencyContact) {
-          logger.debug('Inserting emergency contact');
-          const { error: emergencyContactError } = await supabase
-            .from('emergency_contacts')
-            .insert({
-              participant_id: participantId,
-              first_name: validatedData.emergencyContact.firstName,
-              last_name: validatedData.emergencyContact.lastName,
-              phone: validatedData.emergencyContact.phone,
-              relationship: validatedData.emergencyContact.relationship,
-              other_relationship: validatedData.emergencyContact.otherRelationship || '',
-              created_by: userId
-            });
-          
-          if (emergencyContactError) {
-            logger.error('Failed to insert emergency contact', { error: emergencyContactError });
-            throw new Error(`Failed to insert emergency contact: ${emergencyContactError.message}`);
-          }
-          logger.debug('Emergency contact inserted successfully');
-        }
-        
-        // Insert medical information
-        if (validatedData.medicalInformation) {
-          logger.debug('Inserting medical information');
-          const { error: medicalError } = await supabase
-            .from('medical_information')
-            .insert({
-              participant_id: participantId,
-              dual_diagnosis: validatedData.medicalInformation.dualDiagnosis || false,
-              mat: validatedData.medicalInformation.mat || false,
-              mat_medication: validatedData.medicalInformation.matMedication || '',
-              mat_medication_other: validatedData.medicalInformation.matMedicationOther || '',
-              need_psych_medication: validatedData.medicalInformation.needPsychMedication || false,
-              created_by: userId
-            });
-          
-          if (medicalError) {
-            logger.error('Failed to insert medical information', { error: medicalError });
-            throw new Error(`Failed to insert medical information: ${medicalError.message}`);
-          }
-          logger.debug('Medical information inserted successfully');
-        }
-        
-        // Insert medications
-        if (validatedData.medications && validatedData.medications.length > 0) {
-          logger.debug('Inserting medications');
-          const medicationsToInsert = validatedData.medications.map(med => ({
-            participant_id: participantId,
-            medication_name: med,
-            created_by: userId
-          }));
-          
-          const { error: medicationsError } = await supabase
-            .from('medications')
-            .insert(medicationsToInsert);
-          
-          if (medicationsError) {
-            logger.error('Failed to insert medications', { error: medicationsError });
-            throw new Error(`Failed to insert medications: ${medicationsError.message}`);
-          }
-          logger.debug('Medications inserted successfully');
-        }
-        
-        // Insert authorized people
-        if (validatedData.authorizedPeople && validatedData.authorizedPeople.length > 0) {
-          logger.debug('Inserting authorized people');
-          const authorizedPeopleToInsert = validatedData.authorizedPeople.map(person => ({
-            participant_id: participantId,
-            first_name: person.firstName,
-            last_name: person.lastName,
-            relationship: person.relationship,
-            phone: person.phone,
-            created_by: userId
-          }));
-          
-          const { error: authorizedPeopleError } = await supabase
-            .from('authorized_people')
-            .insert(authorizedPeopleToInsert);
-          
-          if (authorizedPeopleError) {
-            logger.error('Failed to insert authorized people', { error: authorizedPeopleError });
-            throw new Error(`Failed to insert authorized people: ${authorizedPeopleError.message}`);
-          }
-          logger.debug('Authorized people inserted successfully');
-        }
-        
-        // Insert legal status
-        if (validatedData.legalStatus) {
-          logger.debug('Inserting legal status');
-          const { error: legalStatusError } = await supabase
-            .from('legal_status')
-            .insert({
-              participant_id: participantId,
-              has_probation_pretrial: validatedData.legalStatus.hasProbationPretrial || false,
-              jurisdiction: validatedData.legalStatus.jurisdiction || '',
-              other_jurisdiction: validatedData.legalStatus.otherJurisdiction || '',
-              has_pending_charges: validatedData.legalStatus.hasPendingCharges || false,
-              has_convictions: validatedData.legalStatus.hasConvictions || false,
-              is_wanted: validatedData.legalStatus.isWanted || false,
-              is_on_bond: validatedData.legalStatus.isOnBond || false,
-              bondsman_name: validatedData.legalStatus.bondsmanName || '',
-              is_sex_offender: validatedData.legalStatus.isSexOffender || false,
-              created_by: userId
-            });
-          
-          if (legalStatusError) {
-            logger.error('Failed to insert legal status', { error: legalStatusError });
-            throw new Error(`Failed to insert legal status: ${legalStatusError.message}`);
-          }
-          logger.debug('Legal status inserted successfully');
-        }
-        
-        // Insert ASAM assessment data
-        if (validatedData.mentalHealth) {
-          logger.debug('Inserting mental health information');
-          const { error: mentalHealthError } = await supabase
-            .from('mental_health')
-            .insert({
-              participant_id: participantId,
-              entries: validatedData.mentalHealth.entries || [],
-              suicidal_ideation: validatedData.mentalHealth.suicidalIdeation || 'no',
-              homicidal_ideation: validatedData.mentalHealth.homicidalIdeation || 'no',
-              hallucinations: validatedData.mentalHealth.hallucinations || 'no',
-              created_by: userId
-            });
-          
-          if (mentalHealthError) {
-            logger.error('Failed to insert mental health information', { error: mentalHealthError });
-            throw new Error(`Failed to insert mental health information: ${mentalHealthError.message}`);
-          }
-          logger.debug('Mental health information inserted successfully');
-        }
-        
-        // Insert drug history
-        if (validatedData.drugHistory && validatedData.drugHistory.length > 0) {
-          logger.debug('Inserting drug history');
-          const drugHistoryToInsert = validatedData.drugHistory.map(entry => ({
-            participant_id: participantId,
-            drug_type: entry.drugType,
-            ever_used: entry.everUsed || 'no',
-            date_last_use: entry.dateLastUse || '',
-            frequency: entry.frequency || '',
-            intravenous: entry.intravenous || 'no',
-            total_years: entry.totalYears || '',
-            amount: entry.amount || '',
-            created_by: userId
-          }));
-          
-          const { error: drugHistoryError } = await supabase
-            .from('drug_history')
-            .insert(drugHistoryToInsert);
-          
-          if (drugHistoryError) {
-            logger.error('Failed to insert drug history', { error: drugHistoryError });
-            throw new Error(`Failed to insert drug history: ${drugHistoryError.message}`);
-          }
-          logger.debug('Drug history inserted successfully');
-        }
-        
-        // Insert signatures
-        if (validatedData.signatures && validatedData.signatures.length > 0) {
-          logger.debug('Inserting signatures');
-          const signaturesToInsert = validatedData.signatures.map((sig: {
-            signatureType: string;
-            signature: string;
-            signatureId: string;
-            signatureTimestamp: Date;
-            witnessSignature?: string;
-            witnessTimestamp?: Date | null;
-            witnessSignatureId?: string;
-            agreed?: boolean;
-            updates?: Record<string, any>;
-          }) => ({
-            participant_id: participantId,
-            signature_type: sig.signatureType,
-            signature: sig.signature,
-            signature_id: sig.signatureId,
-            signature_timestamp: sig.signatureTimestamp,
-            witness_signature: sig.witnessSignature || '',
-            witness_timestamp: sig.witnessTimestamp || null,
-            witness_signature_id: sig.witnessSignatureId || '',
-            agreed: sig.agreed || false,
-            updates: sig.updates || {},
-            created_by: userId
-          }));
-          
-          const { error: signaturesError } = await supabase
-            .from('signatures')
-            .insert(signaturesToInsert);
-          
-          if (signaturesError) {
-            logger.error('Failed to insert signatures', { error: signaturesError });
-            throw new Error(`Failed to insert signatures: ${signaturesError.message}`);
-          }
-          logger.debug('Signatures inserted successfully');
-        }
-        
-        // Return success response
-        logger.info('All data saved successfully');
-        return NextResponse.json({
-          success: true,
-          message: 'Participant data saved successfully',
-          data: {
-            participant_id: participantId,
-            name: `${validatedData.firstName} ${validatedData.lastName}`,
-            intake_date: validatedData.intakeDate
-          }
-        });
-      } catch (parseError) {
-        // Log the detailed validation error
-        logger.error('Schema validation error', { 
-          error: parseError, 
-          body: JSON.stringify(normalizedBody, null, 2)
-        });
-        
-        return NextResponse.json({
-          success: false,
-          message: 'Invalid form data',
-          error: parseError instanceof Error ? parseError.message : 'Validation failed'
-        }, { status: 400 });
+      // Insert main participant data
+      logger.debug('Inserting participant record');
+      const { data: participant, error: participantError } = await supabase
+        .from('participants')
+        .insert({
+          first_name: normalizedBody.firstName,
+          last_name: normalizedBody.lastName,
+          intake_date: normalizedBody.intakeDate,
+          housing_location: normalizedBody.housingLocation,
+          date_of_birth: normalizedBody.dateOfBirth,
+          social_security_number: normalizedBody.socialSecurityNumber,
+          sex: normalizedBody.sex,
+          email: normalizedBody.email,
+          drivers_license_number: normalizedBody.driversLicenseNumber,
+          phone_number: normalizedBody.phoneNumber,
+          created_by: userId
+        })
+        .select('id')
+        .single();
+      
+      if (participantError) {
+        logger.error('Failed to insert participant', { error: participantError });
+        throw new Error(`Failed to insert participant: ${participantError.message}`);
       }
+      
+      const participantId = participant.id;
+      logger.info('Participant created successfully', { participantId });
+      
+      // Helper function to handle database insertions with error handling
+      const insertWithErrorHandling = async (tableName: string, data: any, description: string) => {
+        try {
+          logger.debug(`Inserting ${description}`);
+          const { error } = await supabase.from(tableName).insert(data);
+          if (error) {
+            logger.error(`Failed to insert ${description}`, { error });
+            throw new Error(`Failed to insert ${description}: ${error.message}`);
+          }
+          logger.debug(`${description} inserted successfully`);
+        } catch (err) {
+          logger.error(`Error inserting ${description}`, { error: err });
+          throw err;
+        }
+      };
+
+      // Insert health status
+      if (normalizedBody.healthStatus) {
+        await insertWithErrorHandling('health_status', {
+          participant_id: participantId,
+          pregnant: normalizedBody.healthStatus.pregnant || false,
+          developmentally_disabled: normalizedBody.healthStatus.developmentallyDisabled || false,
+          co_occurring_disorder: normalizedBody.healthStatus.coOccurringDisorder || false,
+          doc_supervision: normalizedBody.healthStatus.docSupervision || false,
+          felon: normalizedBody.healthStatus.felon || false,
+          physically_handicapped: normalizedBody.healthStatus.physicallyHandicapped || false,
+          post_partum: normalizedBody.healthStatus.postPartum || false,
+          primary_female_caregiver: normalizedBody.healthStatus.primaryFemaleCaregiver || false,
+          recently_incarcerated: normalizedBody.healthStatus.recentlyIncarcerated || false,
+          sex_offender: normalizedBody.healthStatus.sexOffender || false,
+          lgbtq: normalizedBody.healthStatus.lgbtq || false,
+          veteran: normalizedBody.healthStatus.veteran || false,
+          insulin_dependent: normalizedBody.healthStatus.insulinDependent || false,
+          history_of_seizures: normalizedBody.healthStatus.historyOfSeizures || false,
+          race: normalizedBody.healthStatus.race || '',
+          ethnicity: normalizedBody.healthStatus.ethnicity || '',
+          household_income: normalizedBody.healthStatus.householdIncome || '',
+          employment_status: normalizedBody.healthStatus.employmentStatus || '',
+          created_by: userId
+        }, 'health status');
+      }
+      
+      // Insert vehicle information if present
+      if (normalizedBody.vehicle) {
+        await insertWithErrorHandling('vehicles', {
+          participant_id: participantId,
+          make: normalizedBody.vehicle.make || '',
+          model: normalizedBody.vehicle.model || '',
+          tag_number: normalizedBody.vehicle.tagNumber || '',
+          insured: normalizedBody.vehicle.insured || false,
+          insurance_type: normalizedBody.vehicle.insuranceType || '',
+          policy_number: normalizedBody.vehicle.policyNumber || '',
+          created_by: userId
+        }, 'vehicle information');
+      }
+      
+      // Insert emergency contact
+      if (normalizedBody.emergencyContact && normalizedBody.emergencyContact.firstName) {
+        await insertWithErrorHandling('emergency_contacts', {
+          participant_id: participantId,
+          first_name: normalizedBody.emergencyContact.firstName,
+          last_name: normalizedBody.emergencyContact.lastName,
+          phone: normalizedBody.emergencyContact.phone,
+          relationship: normalizedBody.emergencyContact.relationship,
+          other_relationship: normalizedBody.emergencyContact.otherRelationship || '',
+          created_by: userId
+        }, 'emergency contact');
+      }
+      
+      // Insert medical information
+      if (normalizedBody.medicalInformation) {
+        await insertWithErrorHandling('medical_information', {
+          participant_id: participantId,
+          dual_diagnosis: normalizedBody.medicalInformation.dualDiagnosis || false,
+          mat: normalizedBody.medicalInformation.mat || false,
+          mat_medication: normalizedBody.medicalInformation.matMedication || '',
+          mat_medication_other: normalizedBody.medicalInformation.matMedicationOther || '',
+          need_psych_medication: normalizedBody.medicalInformation.needPsychMedication || false,
+          created_by: userId
+        }, 'medical information');
+      }
+      
+      // Insert medications
+      if (normalizedBody.medications && normalizedBody.medications.length > 0) {
+        const medicationsToInsert = normalizedBody.medications.map((med: any) => ({
+          participant_id: participantId,
+          medication_name: typeof med === 'string' ? med : med.medication_name || med.name || 'Unknown',
+          dosage: typeof med === 'object' ? med.dosage : undefined,
+          frequency: typeof med === 'object' ? med.frequency : undefined,
+          prescribing_doctor: typeof med === 'object' ? med.prescribing_doctor : undefined,
+          created_by: userId
+        }));
+        
+        await insertWithErrorHandling('medications', medicationsToInsert, 'medications');
+      }
+      
+      // Insert authorized people
+      if (normalizedBody.authorizedPeople && normalizedBody.authorizedPeople.length > 0) {
+        const authorizedPeopleToInsert = normalizedBody.authorizedPeople.map((person: any) => ({
+          participant_id: participantId,
+          first_name: person.firstName,
+          last_name: person.lastName,
+          relationship: person.relationship,
+          phone: person.phone || '',
+          created_by: userId
+        }));
+        
+        await insertWithErrorHandling('authorized_people', authorizedPeopleToInsert, 'authorized people');
+      }
+      
+      // Insert legal status
+      if (normalizedBody.legalStatus) {
+        await insertWithErrorHandling('legal_status', {
+          participant_id: participantId,
+          has_probation_pretrial: normalizedBody.legalStatus.hasProbationPretrial || false,
+          jurisdiction: normalizedBody.legalStatus.jurisdiction || '',
+          other_jurisdiction: normalizedBody.legalStatus.otherJurisdiction || '',
+          has_pending_charges: normalizedBody.legalStatus.hasPendingCharges || false,
+          has_convictions: normalizedBody.legalStatus.hasConvictions || false,
+          is_wanted: normalizedBody.legalStatus.isWanted || false,
+          is_on_bond: normalizedBody.legalStatus.isOnBond || false,
+          bondsman_name: normalizedBody.legalStatus.bondsmanName || '',
+          is_sex_offender: normalizedBody.legalStatus.isSexOffender || false,
+          created_by: userId
+        }, 'legal status');
+      }
+
+      // Insert pending charges if any
+      if (normalizedBody.pendingCharges && normalizedBody.pendingCharges.length > 0) {
+        const pendingChargesToInsert = normalizedBody.pendingCharges.map((charge: any) => ({
+          participant_id: participantId,
+          charge_description: charge.description || charge.charge_description || 'No description provided',
+          court_date: charge.court_date || charge.courtDate,
+          jurisdiction: charge.jurisdiction || '',
+          case_number: charge.case_number || charge.caseNumber || '',
+          created_by: userId
+        }));
+        
+        await insertWithErrorHandling('pending_charges', pendingChargesToInsert, 'pending charges');
+      }
+
+      // Insert convictions if any
+      if (normalizedBody.convictions && normalizedBody.convictions.length > 0) {
+        const convictionsToInsert = normalizedBody.convictions.map((conviction: any) => ({
+          participant_id: participantId,
+          conviction_description: conviction.description || conviction.conviction_description || 'No description provided',
+          conviction_date: conviction.conviction_date || conviction.convictionDate,
+          jurisdiction: conviction.jurisdiction || '',
+          sentence: conviction.sentence || '',
+          created_by: userId
+        }));
+        
+        await insertWithErrorHandling('convictions', convictionsToInsert, 'convictions');
+      }
+      
+      // Insert mental health information
+      if (normalizedBody.mentalHealth) {
+        await insertWithErrorHandling('mental_health', {
+          participant_id: participantId,
+          entries: normalizedBody.mentalHealth.entries || [],
+          suicidal_ideation: normalizedBody.mentalHealth.suicidalIdeation || 'no',
+          homicidal_ideation: normalizedBody.mentalHealth.homicidalIdeation || 'no',
+          hallucinations: normalizedBody.mentalHealth.hallucinations || 'no',
+          depression_history: normalizedBody.mentalHealth.depressionHistory || false,
+          anxiety_history: normalizedBody.mentalHealth.anxietyHistory || false,
+          bipolar_history: normalizedBody.mentalHealth.bipolarHistory || false,
+          ptsd_history: normalizedBody.mentalHealth.ptsdHistory || false,
+          other_conditions: normalizedBody.mentalHealth.otherConditions || '',
+          current_therapy: normalizedBody.mentalHealth.currentTherapy || false,
+          therapy_provider: normalizedBody.mentalHealth.therapyProvider || '',
+          created_by: userId
+        }, 'mental health information');
+      }
+      
+      // Insert drug history
+      if (normalizedBody.drugHistory && normalizedBody.drugHistory.length > 0) {
+        const drugHistoryToInsert = normalizedBody.drugHistory.map((entry: any) => ({
+          participant_id: participantId,
+          drug_type: entry.drugType,
+          ever_used: entry.everUsed || 'no',
+          date_last_use: entry.dateLastUse || '',
+          frequency: entry.frequency || '',
+          intravenous: entry.intravenous || 'no',
+          total_years: entry.totalYears || '',
+          amount: entry.amount || '',
+          drug_of_choice: entry.drugOfChoice || false,
+          created_by: userId
+        }));
+        
+        await insertWithErrorHandling('drug_history', drugHistoryToInsert, 'drug history');
+      }
+
+      // Insert insurance information
+      if (normalizedBody.insurances && normalizedBody.insurances.length > 0) {
+        const insurancesToInsert = normalizedBody.insurances.map((insurance: any) => ({
+          participant_id: participantId,
+          insurance_type: insurance.type || insurance.insurance_type || '',
+          insurance_company: insurance.company || insurance.insurance_company || '',
+          policy_number: insurance.policy_number || insurance.policyNumber || '',
+          group_number: insurance.group_number || insurance.groupNumber || '',
+          is_primary: insurance.is_primary || insurance.isPrimary || false,
+          created_by: userId
+        }));
+        
+        await insertWithErrorHandling('insurances', insurancesToInsert, 'insurance information');
+      }
+
+      // Insert recovery residences history
+      if (normalizedBody.recoveryResidences && normalizedBody.recoveryResidences.length > 0) {
+        const recoveryResidencesToInsert = normalizedBody.recoveryResidences.map((residence: any) => ({
+          participant_id: participantId,
+          residence_name: residence.name || residence.residence_name || 'Unknown',
+          location: residence.location || '',
+          start_date: residence.start_date || residence.startDate,
+          end_date: residence.end_date || residence.endDate,
+          reason_for_leaving: residence.reason_for_leaving || residence.reasonForLeaving || '',
+          would_recommend: residence.would_recommend || residence.wouldRecommend,
+          created_by: userId
+        }));
+        
+        await insertWithErrorHandling('recovery_residences', recoveryResidencesToInsert, 'recovery residences history');
+      }
+
+      // Insert treatment history
+      if (normalizedBody.treatmentHistory && normalizedBody.treatmentHistory.length > 0) {
+        const treatmentHistoryToInsert = normalizedBody.treatmentHistory.map((treatment: any) => ({
+          participant_id: participantId,
+          facility_name: treatment.facility_name || treatment.facilityName || 'Unknown',
+          treatment_type: treatment.treatment_type || treatment.treatmentType || '',
+          start_date: treatment.start_date || treatment.startDate,
+          end_date: treatment.end_date || treatment.endDate,
+          completed: treatment.completed || false,
+          location: treatment.location || '',
+          created_by: userId
+        }));
+        
+        await insertWithErrorHandling('treatment_history', treatmentHistoryToInsert, 'treatment history');
+      }
+      
+      // Insert signatures with legal document preservation
+      if (validatedSignatures.length > 0) {
+        logger.debug('Preparing signatures for insertion');
+        
+        const signaturesToInsert = validatedSignatures.map((sig: Signature) => ({
+          participant_id: participantId,
+          signature_type: sig.signatureType,
+          signature: sig.signature || sig.signatureId, // Use actual signature or fallback to ID
+          signature_id: sig.signatureId,
+          signature_timestamp: sig.signatureTimestamp,
+          witness_signature: sig.witnessSignature || '',
+          witness_timestamp: sig.witnessTimestamp || null,
+          witness_signature_id: sig.witnessSignatureId || '',
+          agreed: sig.agreed || true,
+          updates: sig.updates || {},
+          // TODO: Fetch and store the current legal document version and content
+          legal_document_version: null,
+          legal_document_content: null,
+          created_by: userId
+        }));
+        
+        await insertWithErrorHandling('signatures', signaturesToInsert, 'signatures');
+      }
+      
+      // Return success response
+      logger.info('All data saved successfully to Supabase');
+      return NextResponse.json({
+        success: true,
+        message: 'Participant data saved successfully',
+        data: {
+          participant_id: participantId,
+          name: `${normalizedBody.firstName} ${normalizedBody.lastName}`,
+          intake_date: normalizedBody.intakeDate,
+          total_signatures: validatedSignatures.length
+        }
+      });
+      
     } catch (error: any) {
-      logger.error('Unhandled API error', { 
+      logger.error('Database transaction error', { 
         error: error,
         message: error.message,
         stack: error.stack,
@@ -605,7 +560,7 @@ export async function POST(request: Request) {
       
       return NextResponse.json({
         success: false,
-        message: 'Failed to process request',
+        message: 'Failed to save participant data',
         error: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred'
       }, { status: 500 });
     }
@@ -616,7 +571,7 @@ export async function POST(request: Request) {
       stack: error.stack,
       type: error.constructor.name
     });
-    
+
     return NextResponse.json({
       success: false,
       message: 'Failed to process request',

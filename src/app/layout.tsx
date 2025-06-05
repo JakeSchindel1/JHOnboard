@@ -3,6 +3,8 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from '@/components/contexts/AuthContext';
 import dynamic from 'next/dynamic';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Dynamically import the AuthParamCleaner with no SSR
 // This ensures it only runs on the client side
@@ -62,6 +64,18 @@ export default function RootLayout({
           {/* Add AuthParamCleaner here to clean up auth parameters */}
           <AuthParamCleaner />
           {children}
+          {/* Toast notifications container */}
+          <ToastContainer
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
         </AuthProvider>
       </body>
     </html>
