@@ -33,9 +33,9 @@ The application uses a `ProtectedRoute` component to secure pages that require a
 - Node.js 16.x or higher
 - npm or yarn
 
-### Installation
+### Installation!
 
-1. Clone the repository
+1. Clone the repository 
 2. Install dependencies:
    ```
    npm install
