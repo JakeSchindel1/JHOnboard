@@ -22,7 +22,7 @@ interface LegalDocument {
 }
 
 export default function ViewLegalDocumentPage() {
-  const [document, setDocument] = useState<LegalDocument | null>(null);
+  const [legalDocument, setLegalDocument] = useState<LegalDocument | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -59,7 +59,7 @@ export default function ViewLegalDocumentPage() {
           throw new Error('Document not found');
         }
 
-        setDocument(data);
+        setLegalDocument(data);
       } catch (err) {
         console.error('Error loading document:', err);
         setError(err instanceof Error ? err.message : 'Failed to load document');
@@ -72,25 +72,25 @@ export default function ViewLegalDocumentPage() {
   }, [user, documentId, supabase]);
 
   const handleEdit = () => {
-    if (document) {
-      router.push(`/admin/legal-management/edit/${document.id}`);
+    if (legalDocument) {
+      router.push(`/admin/legal-management/edit/${legalDocument.id}`);
     }
   };
 
   const handleViewHistory = () => {
-    if (document) {
-      router.push(`/admin/legal-management/history/${document.document_type}`);
+    if (legalDocument) {
+      router.push(`/admin/legal-management/history/${legalDocument.document_type}`);
     }
   };
 
   const handleDownloadText = () => {
-    if (!document) return;
+    if (!legalDocument) return;
     
-    const blob = new Blob([document.content], { type: 'text/plain' });
+    const blob = new Blob([legalDocument.content], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${document.document_type}_v${document.version}.txt`;
+    link.download = `${legalDocument.document_type}_v${legalDocument.version}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -146,7 +146,7 @@ export default function ViewLegalDocumentPage() {
     );
   }
 
-  if (error || !document) {
+  if (error || !legalDocument) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -221,33 +221,33 @@ export default function ViewLegalDocumentPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-3">
-                  {document.title}
-                  <Badge variant={document.is_active ? 'default' : 'secondary'}>
-                    {document.is_active ? 'Active' : 'Inactive'}
+                  {legalDocument.title}
+                  <Badge variant={legalDocument.is_active ? 'default' : 'secondary'}>
+                    {legalDocument.is_active ? 'Active' : 'Inactive'}
                   </Badge>
                 </CardTitle>
-                <CardDescription>{document.description}</CardDescription>
+                <CardDescription>{legalDocument.description}</CardDescription>
               </div>
-              <Badge variant="outline">v{document.version}</Badge>
+              <Badge variant="outline">v{legalDocument.version}</Badge>
             </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Document Type:</span>
-                <div className="font-medium capitalize">{document.document_type.replace(/_/g, ' ')}</div>
+                <div className="font-medium capitalize">{legalDocument.document_type.replace(/_/g, ' ')}</div>
               </div>
               <div>
                 <span className="text-gray-600">Version:</span>
-                <div className="font-medium">v{document.version}</div>
+                <div className="font-medium">v{legalDocument.version}</div>
               </div>
               <div>
                 <span className="text-gray-600">Status:</span>
-                <div className="font-medium">{document.is_active ? 'Active' : 'Inactive'}</div>
+                <div className="font-medium">{legalDocument.is_active ? 'Active' : 'Inactive'}</div>
               </div>
               <div>
                 <span className="text-gray-600">Created:</span>
-                <div className="font-medium">{new Date(document.created_at).toLocaleDateString()}</div>
+                <div className="font-medium">{new Date(legalDocument.created_at).toLocaleDateString()}</div>
               </div>
             </div>
           </CardContent>
@@ -264,7 +264,7 @@ export default function ViewLegalDocumentPage() {
           <CardContent>
             <div className="prose max-w-none">
               <div className="bg-white p-6 rounded-lg border-2 border-gray-200 min-h-[400px]">
-                {renderContent(document.content)}
+                {renderContent(legalDocument.content)}
               </div>
             </div>
           </CardContent>
@@ -282,7 +282,7 @@ export default function ViewLegalDocumentPage() {
             <div className="space-y-3 text-sm">
               <div>
                 <span className="text-gray-600">Signature Type:</span>
-                <span className="ml-2 font-medium font-mono bg-gray-100 px-2 py-1 rounded">{document.document_type}</span>
+                <span className="ml-2 font-medium font-mono bg-gray-100 px-2 py-1 rounded">{legalDocument.document_type}</span>
               </div>
               <div>
                 <span className="text-gray-600">When shown:</span>
@@ -292,7 +292,7 @@ export default function ViewLegalDocumentPage() {
                 <span className="text-gray-600">Legal preservation:</span>
                 <span className="ml-2">When participants sign, the exact content and version are stored permanently</span>
               </div>
-              {!document.is_active && (
+              {!legalDocument.is_active && (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                   <span className="text-amber-800 font-medium">⚠️ This version is inactive.</span>
                   <span className="ml-2 text-amber-700">Participants will see the active version instead.</span>
