@@ -258,7 +258,7 @@ export default function ApplicationDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Driver's License</label>
+                    <label className="text-sm font-medium text-gray-500">Driver&apos;s License</label>
                     <p className="text-gray-900">{participant.drivers_license_number || 'Not provided'}</p>
                   </div>
                 </div>

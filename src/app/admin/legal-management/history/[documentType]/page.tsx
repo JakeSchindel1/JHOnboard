@@ -163,7 +163,7 @@ export default function LegalDocumentHistoryPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid Document Type</h1>
-          <p className="text-gray-600 mb-4">The document type "{documentType}" was not found.</p>
+          <p className="text-gray-600 mb-4">The document type &quot;{documentType}&quot; was not found.</p>
           <Button onClick={() => router.push('/admin/legal-management')}>
             Back to Legal Management
           </Button>
@@ -255,7 +255,7 @@ export default function LegalDocumentHistoryPage() {
               <div className="text-center py-8 text-gray-500">
                 <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p className="text-lg font-medium mb-2">No versions found</p>
-                <p className="mb-4">This document type hasn't been created yet.</p>
+                <p className="mb-4">This document type hasn&apos;t been created yet.</p>
                 <Button onClick={handleCreateNew}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create First Version

@@ -225,7 +225,7 @@ export default function LegalManagementPage() {
                 Missing Documents
               </CardTitle>
               <CardDescription>
-                These document types haven't been created yet. Click to create the initial version.
+                These document types haven&apos;t been created yet. Click to create the initial version.
               </CardDescription>
             </CardHeader>
             <CardContent>
